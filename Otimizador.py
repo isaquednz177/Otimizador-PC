@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """
 ===============================================================================
  OTIMIZADOR PC  -  Limpeza e ajustes reversíveis do Windows 10/11
@@ -46,18 +46,18 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 
-# =============================================================================
+
 # 1. CONSTANTES GERAIS
-# =============================================================================
+
 
 APP_NOME = "Otimizador PC"
 APP_VERSAO = "1.0"
 
-# Pasta onde guardamos o backup do estado original do Windows.
+# backup do estado original do Windows.
 PASTA_DADOS = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "OtimizadorPC")
 ARQUIVO_BACKUP = os.path.join(PASTA_DADOS, "backup_estado.json")
 
-# Flag para rodar comandos (sc, powercfg, schtasks) sem piscar janela preta.
+# rodar comandos (sc, powercfg, schtasks) sem piscar janela preta.
 CREATE_NO_WINDOW = 0x08000000
 
 # Em Windows 64 bits, se o .exe for 32 bits, o registro é "redirecionado".
@@ -80,9 +80,8 @@ SERVICOS_PERMITIDOS = {"DiagTrack", "dmwappushservice", "WSearch", "SysMain"}
 MAPA_START = {2: "auto", 3: "demand", 4: "disabled"}
 
 
-# =============================================================================
 # 2. UTILIDADES BÁSICAS
-# =============================================================================
+
 
 def eh_windows() -> bool:
     """Confere se estamos rodando no Windows."""
@@ -104,11 +103,11 @@ def reexecutar_como_admin() -> None:
     """
     try:
         if getattr(sys, "frozen", False):
-            # Rodando como .exe compilado: o executável é o próprio sys.executable
+           
             alvo = sys.executable
             args = " ".join(f'"{a}"' for a in sys.argv[1:])
         else:
-            # Rodando como script .py: chamamos o python passando o script
+          
             alvo = sys.executable
             args = " ".join(f'"{a}"' for a in sys.argv)
         ctypes.windll.shell32.ShellExecuteW(None, "runas", alvo, args, None, 1)
