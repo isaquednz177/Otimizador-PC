@@ -1,0 +1,13 @@
+# gerados pelo gerar_exe.bat
+build/
+dist/
+*.spec
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# editor
+.vscode/
