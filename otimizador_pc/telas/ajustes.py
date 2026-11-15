@@ -11,42 +11,53 @@ from otimizador_pc import ponto
 from otimizador_pc import tema as t
 from otimizador_pc.telas.base import Pagina
 
-TEXTO = {"aplicado": "já aplicado", "parcial": "em parte", "padrao": "padrão do Windows",
-         "indisponivel": "não existe aqui", None: "conferindo..."}
-COR = {"aplicado": t.OK, "parcial": t.ACENTO, "padrao": t.SUAVE, "indisponivel": t.FRACO, None: t.FRACO}
+TEXTO = {"aplicado": "já está feito", "parcial": "feito em parte", "padrao": "ainda não feito",
+         "indisponivel": "não existe neste PC", None: "conferindo..."}
+COR = {"aplicado": t.OK, "parcial": t.LARANJA, "padrao": t.SUAVE, "indisponivel": t.FRACO, None: t.FRACO}
 
 
 class Ajustes(Pagina):
-    titulo = "Ajustes"
-    subtitulo = ("Ajustes do Windows. Como estava antes fica guardado, e a página Reverter desfaz "
-                 "qualquer um deles.")
+    titulo = "Ajustes do Windows"
+    subtitulo = ("Mudanças nas configurações do Windows para deixar o PC mais leve e com menos propaganda. "
+                 "Como estava antes fica guardado: a página \"Desfazer ajustes\" volta qualquer um deles.")
 
     def montar(self):
         self.j.registrar_botao(self.botao_topo("conferir de novo", self.conferir))
-        self.j.registrar_botao(self.botao_topo("aplicar selecionados", self.acao_aplicar, "principal"))
+        self.j.registrar_botao(self.botao_topo("fazer o que está marcado", self.acao_aplicar, "principal", largura=230))
         cartao = t.cartao(self.corpo)
         cartao.pack(fill="both", expand=True)
         area = t.rolavel(cartao)
         area.pack(fill="both", expand=True, padx=8, pady=8)
         self.linhas = {}
-        for a in aj.AJUSTES:
-            var = ctk.BooleanVar(value=False)
-            f = ctk.CTkFrame(area, fg_color="transparent")
-            f.pack(fill="x", padx=8, pady=(10, 0))
-            f.grid_columnconfigure(0, weight=1)
-            caixa = t.caixa(f, a.nome, var)
-            caixa.grid(row=0, column=0, sticky="w")
-            estado = t.rotulo(f, TEXTO[None], "titulo", 11, COR[None], anchor="e")
-            estado.grid(row=0, column=1, sticky="e", padx=8)
-            t.rotulo(f, a.descricao, "corpo", 12, t.FRACO, wraplength=720).grid(
-                row=1, column=0, columnspan=2, sticky="w", padx=(28, 0), pady=(2, 0))
-            self.linhas[a.id] = (a, var, caixa, estado)
+        for a in [a for a in aj.AJUSTES if a.nivel != "avancado"]:
+            self._linha(area, a)
+        avancados = [a for a in aj.AJUSTES if a.nivel == "avancado"]
+        if avancados:
+            recolhivel = t.Recolhivel(area, len(avancados))
+            for a in avancados:
+                self._linha(recolhivel.corpo, a)
 
         rodape = ctk.CTkFrame(self.corpo, fg_color="transparent")
         rodape.pack(fill="x", pady=(10, 0))
         self.var_ponto = ctk.BooleanVar(value=True)
         t.caixa(rodape, "criar um ponto de restauração antes (recomendado)", self.var_ponto).pack(side="left")
+        t.ajuda(rodape, "Uma \"foto\" das configurações do Windows tirada antes de mudar qualquer coisa. Se algo der "
+                        "errado, dá para voltar o Windows para como estava (Painel de Controle › Recuperação).").pack(
+            side="left", padx=8)
         self._conferido = False
+
+    def _linha(self, pai, a):
+        var = ctk.BooleanVar(value=False)
+        f = ctk.CTkFrame(pai, fg_color="transparent")
+        f.pack(fill="x", padx=8, pady=(10, 0))
+        f.grid_columnconfigure(0, weight=1)
+        nome, caixa = t.nome_com_etiqueta(f, a.nome, var, a.nivel)
+        nome.grid(row=0, column=0, sticky="w")
+        estado = t.rotulo(f, TEXTO[None], "titulo", 12, COR[None], anchor="e")
+        estado.grid(row=0, column=1, sticky="e", padx=8)
+        t.texto_longo(f, a.descricao, "corpo", 12, t.FRACO).grid(
+            row=1, column=0, columnspan=2, sticky="ew", padx=(28, 0), pady=(2, 0))
+        self.linhas[a.id] = (a, var, caixa, estado)
 
     def ao_mostrar(self):
         super().ao_mostrar()
@@ -75,12 +86,12 @@ class Ajustes(Pagina):
     def acao_aplicar(self):
         escolhidos = [a for a, var, _, _ in self.linhas.values() if var.get()]
         if not escolhidos:
-            messagebox.showinfo(APP_NOME, "Marque pelo menos um ajuste.")
+            messagebox.showinfo(APP_NOME, "Marque pelo menos um ajuste na lista.")
             return
         if not self.j.precisa_admin():
             return
         if not messagebox.askyesno(APP_NOME, f"Aplicar {len(escolhidos)} ajuste(s)? Como estava antes fica "
-                                             "guardado, e a página Reverter desfaz."):
+                                             "guardado, e a página \"Desfazer ajustes\" volta atrás."):
             return
         com_ponto = self.var_ponto.get()
         self.j.trabalhar(lambda ctl: self._aplicar(ctl, escolhidos, com_ponto), "aplicando ajustes")
@@ -116,4 +127,4 @@ class Ajustes(Pagina):
         if r == "ok":
             return True
         return self.j.perguntar("Não foi criado um ponto de restauração.\n\nOs ajustes ainda podem ser desfeitos "
-                                "pela página Reverter. Continuar mesmo assim?", aviso=True)
+                                "pela página \"Desfazer ajustes\". Continuar mesmo assim?", aviso=True)

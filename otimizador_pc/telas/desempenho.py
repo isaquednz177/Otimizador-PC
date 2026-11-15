@@ -11,6 +11,7 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from otimizador_pc import APP_NOME, info, inicializacao as ini
+from otimizador_pc import explicar as ex
 from otimizador_pc import tema as t
 from otimizador_pc.processos import Monitor, exe_do_comando
 from otimizador_pc.telas.base import Pagina
@@ -25,8 +26,8 @@ def _pct(v):
 
 class Desempenho(Pagina):
     titulo = "Desempenho"
-    subtitulo = ("Memória e processador agora e nos últimos 3 minutos, e os programas que mais pesam "
-                 "(somando todos os processos de cada um).")
+    subtitulo = ("Mostra se o PC está pesado agora e por quê. As duas coisas que mais deixam o PC lento são "
+                 "a memória cheia e o processador sobrecarregado; embaixo, os programas que mais gastam.")
 
     def montar(self):
         self.monitor = Monitor()
@@ -39,14 +40,17 @@ class Desempenho(Pagina):
         c = self.corpo
         c.grid_columnconfigure((0, 1), weight=1, uniform="medidores")
         c.grid_rowconfigure(2, weight=1)
-        self.mem = self._medidor(0, "Memória")
-        self.cpu = self._medidor(1, "Processador")
+        self.mem = self._medidor(0, "Memória (RAM)", ex.GLOSSARIO_DICT["Memória (RAM)"])
+        self.cpu = self._medidor(1, "Processador (CPU)", ex.GLOSSARIO_DICT["Processador (CPU)"])
 
         quem = t.cartao(c)
         quem.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 12))
         cab = ctk.CTkFrame(quem, fg_color="transparent")
         cab.pack(fill="x", padx=20, pady=(12, 6))
         t.rotulo(cab, "Quem está usando a memória", "titulo", 13, t.TEXTO).pack(side="left")
+        t.ajuda(cab, "Cada cor é um programa aberto. \"Windows, drivers e cache\" é o que o próprio Windows usa para "
+                     "funcionar e para abrir as coisas mais rápido (ele devolve essa parte quando outro programa "
+                     "precisa). \"Livre\" é o que sobra.").pack(side="left", padx=8)
         self.lbl_quem = t.rotulo(cab, "", "corpo", 11, t.FRACO)
         self.lbl_quem.pack(side="right")
         self.composicao = t.Composicao(quem, altura=60)
@@ -69,17 +73,22 @@ class Desempenho(Pagina):
         self.lbl_rodape.pack(anchor="w", padx=20, pady=(0, 12))
 
     # ------------------------------------------------------------ peças
-    def _medidor(self, coluna, nome):
+    def _medidor(self, coluna, nome, explicacao):
         card = t.cartao(self.corpo)
         card.grid(row=0, column=coluna, sticky="nsew", padx=(0 if coluna == 0 else 6, 6 if coluna == 0 else 0),
                   pady=(0, 12))
         card.grid_columnconfigure(1, weight=1)
         anel = t.Anel(card, tamanho=96)
         anel.grid(row=0, column=0, rowspan=4, padx=(18, 14), pady=(14, 4), sticky="n")
-        t.rotulo(card, nome, "titulo", 14).grid(row=0, column=1, sticky="w", pady=(16, 0))
-        linhas = [t.rotulo(card, "", "corpo", 12, t.SUAVE) for _ in range(3)]
+        topo = ctk.CTkFrame(card, fg_color="transparent")
+        topo.grid(row=0, column=1, sticky="w", pady=(16, 0))
+        t.rotulo(topo, nome, "titulo", 14).pack(side="left")
+        t.ajuda(topo, explicacao).pack(side="left", padx=8)
+        # 1: o veredito em palavras, 2: o detalhe, 3: os últimos 3 minutos
+        linhas = [t.rotulo(card, "", "corpo_forte", 12), t.texto_longo(card, "", "corpo", 12, t.SUAVE),
+                  t.rotulo(card, "", "corpo", 11, t.FRACO)]
         for i, r in enumerate(linhas, start=1):
-            r.grid(row=i, column=1, sticky="w")
+            r.grid(row=i, column=1, sticky="ew", padx=(0, 22))
         grafico = t.Grafico(card, altura=50)
         # longe das volutas dos cantos de baixo
         grafico.grid(row=4, column=0, columnspan=2, sticky="ew", padx=(18, 28), pady=(4, 22))
@@ -115,26 +124,26 @@ class Desempenho(Pagina):
         h = self.j.historico
         if d.get("ram_total"):
             fr = d["ram_usada"] / d["ram_total"]
-            self.mem["anel"].definir(fr, f"{d['ram_pct']}%", "em uso")
+            nivel, curto, frase = ex.memoria(d["ram_pct"])
+            self.mem["anel"].definir(fr, f"{d['ram_pct']}%", curto)
             pico, media = h.pico_e_media(h.memoria)
-            livre = d["ram_total"] - d["ram_usada"]
             l1, l2, l3 = self.mem["linhas"]
-            l1.configure(text=f"{formatar_tamanho(d['ram_usada'])} de {formatar_tamanho(d['ram_total'])} em uso",
-                         text_color=t.TEXTO)
-            l2.configure(text=f"livre: {formatar_tamanho(livre)}",
-                         text_color=t.ACENTO if livre < d["ram_total"] * 0.1 else t.SUAVE)
-            l3.configure(text=f"pico {_pct(pico)}  ·  média {_pct(media)}  (3 min)")
+            l1.configure(text=f"{curto.capitalize()}: usando {formatar_tamanho(d['ram_usada'])} de "
+                              f"{formatar_tamanho(d['ram_total'])}", text_color=t.COR_NIVEL[nivel])
+            l2.configure(text=frase)
+            l3.configure(text=f"Nos últimos 3 minutos: no máximo {_pct(pico)}, em média {_pct(media)}.")
             self.mem["grafico"].definir(h.memoria)
         cpu = d.get("cpu")
-        if cpu is not None:
-            self.cpu["anel"].definir(cpu / 100, f"{cpu:.0f}%", "agora")
         pico, media = h.pico_e_media(h.processador)
+        nivel, curto, frase = ex.processador(media)
+        if cpu is not None:
+            self.cpu["anel"].definir(cpu / 100, f"{cpu:.0f}%", curto)
         l1, l2, l3 = self.cpu["linhas"]
-        l1.configure(text=f"{self.monitor.nucleos} núcleos lógicos", text_color=t.TEXTO)
         topo = max((g for g in self.grupos if g.cpu is not None), key=lambda g: g.cpu, default=None)
-        l2.configure(text=f"quem mais usa: {topo.nome} ({topo.cpu:.0f}%)" if topo and topo.cpu >= 1
-                     else "nenhum programa pesando agora")
-        l3.configure(text=f"pico {_pct(pico)}  ·  média {_pct(media)}  (3 min)")
+        quem = f" (quem mais usa: {topo.nome})" if topo and topo.cpu >= 5 else ""
+        l1.configure(text=f"{curto.capitalize()}{quem}", text_color=t.COR_NIVEL[nivel])
+        l2.configure(text=frase)
+        l3.configure(text=f"Nos últimos 3 minutos: no máximo {_pct(pico)}, em média {_pct(media)}.")
         self.cpu["grafico"].definir(h.processador)
 
     # ------------------------------------------------------------ lista (a cada 3 s)
@@ -194,7 +203,7 @@ class Desempenho(Pagina):
             g = grupos[i]
             partes = [g.exe]
             if g.qtd > 1:
-                partes.append(f"{g.qtd} processos")
+                partes.append(f"aberto em {g.qtd} partes")
             if g.exe in self.abre_com_windows:
                 partes.append("abre com o Windows")
             if g.servico:

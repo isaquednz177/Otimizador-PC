@@ -69,6 +69,7 @@ class ItemLimpeza:
     analisar_especial: Optional[Callable] = None   # (s) -> Resultado | None
     limpar_especial: Optional[Callable] = None     # (s, log) -> Resultado
     sempre_mostrar: bool = False
+    nivel: str = "seguro"   # "seguro", "cuidado" (tem um porém) ou "avancado" (fica escondido no começo)
 
     def disponivel(self) -> bool:
         if self.sempre_mostrar or self.limpar_especial:
@@ -404,79 +405,78 @@ def _limpar_componentes(s, log):
 
 
 # ---------------------------------------------------------------- lista
+_NAVEGADOR = ("Arquivos que o navegador guarda para abrir sites mais rápido. Senhas, histórico, favoritos "
+              "e abas NÃO são apagados. Os sites podem demorar um pouquinho mais na primeira vez. "
+              "Feche {} antes; aberto, ele é pulado.")
+
 ITENS = [
-    ItemLimpeza("temp_user", "Temporários do usuário (%TEMP%)",
-                "Arquivos descartáveis de programas e instaladores. Os das últimas 24 h ficam, "
-                "para não quebrar uma instalação em andamento.",
-                alvos_temp_usuario, padrao=True),
-    ItemLimpeza("temp_win", "Temporários do Windows (C:\\Windows\\Temp)",
-                "Restos de atualizações e instaladores do sistema. Também guarda os das últimas 24 h.",
-                alvos_temp_windows, padrao=True),
-    ItemLimpeza("relatorios_erro", "Relatórios de erro antigos",
-                "Relatórios de travamentos que o Windows já mandou ou desistiu de mandar.",
-                alvos_relatorios, padrao=True),
-    ItemLimpeza("cache_update", "Downloads do Windows Update",
-                "Instaladores de atualizações já baixados. O Windows Update é pausado durante a "
-                "limpeza e volta sozinho; uma atualização pendente pode ser baixada de novo.",
-                alvos_update, parar_servicos=("wuauserv", "BITS")),
-    ItemLimpeza("entrega_otimizada", "Cache da Otimização de Entrega",
-                "Pedaços de atualizações que o Windows guarda para mandar a outros PCs. "
-                "Apagado pelo próprio Windows.",
-                analisar_especial=_analisar_entrega, limpar_especial=_limpar_entrega),
-    ItemLimpeza("navegador_chrome", "Cache do Google Chrome",
-                "Só o cache de páginas e imagens: senhas, histórico e abas ficam. Feche o Chrome antes.",
-                lambda: _alvos_chromium(_local("Google", "Chrome", "User Data")),
-                fechar_processos=("chrome.exe",), nome_processo="o Chrome"),
-    ItemLimpeza("navegador_edge", "Cache do Microsoft Edge",
-                "Só o cache: senhas, histórico e abas ficam. O Edge costuma ficar aberto escondido; "
-                "se for pulado, desligue \"Aumento de inicialização\" nas configurações dele.",
-                lambda: _alvos_chromium(_local("Microsoft", "Edge", "User Data")),
-                fechar_processos=("msedge.exe",), nome_processo="o Edge"),
-    ItemLimpeza("navegador_brave", "Cache do Brave",
-                "Só o cache: senhas, histórico e abas ficam. Feche o Brave antes.",
-                lambda: _alvos_chromium(_local("BraveSoftware", "Brave-Browser", "User Data")),
-                fechar_processos=("brave.exe",), nome_processo="o Brave"),
-    ItemLimpeza("navegador_operagx", "Cache do Opera GX",
-                "Só o cache: senhas, histórico e abas ficam. Feche o Opera GX antes.",
-                lambda: _alvos_opera("Opera GX Stable"),
-                fechar_processos=("opera.exe",), nome_processo="o Opera GX"),
-    ItemLimpeza("navegador_opera", "Cache do Opera",
-                "Só o cache: senhas, histórico e abas ficam. Feche o Opera antes.",
-                lambda: _alvos_opera("Opera Stable"),
-                fechar_processos=("opera.exe",), nome_processo="o Opera"),
-    ItemLimpeza("navegador_firefox", "Cache do Firefox",
-                "Só o cache: senhas, histórico e abas ficam. Feche o Firefox antes.",
-                _alvos_firefox, fechar_processos=("firefox.exe",), nome_processo="o Firefox"),
-    ItemLimpeza("shaders", "Cache de shaders (DirectX, NVIDIA, AMD, Intel)",
-                "Resolve gráfico bugado depois de atualizar o driver. Atenção: os jogos podem dar "
-                "umas travadinhas nas primeiras partidas enquanto refazem o cache.",
-                alvos_shaders),
-    ItemLimpeza("miniaturas", "Cache de miniaturas do Explorador",
-                "As miniaturas de fotos e vídeos são refeitas quando você abre as pastas.",
-                alvos_miniaturas),
-    ItemLimpeza("dumps", "Despejos de memória de telas azuis",
-                "MEMORY.DMP e minidumps. Só apague se não precisa investigar uma tela azul.",
-                alvos_dumps),
-    ItemLimpeza("logs_windows", "Logs antigos do Windows (CBS e DISM)",
-                "Registros de instalação de atualizações com mais de 7 dias.",
-                alvos_logs),
+    ItemLimpeza("temp_user", "Arquivos temporários dos programas",
+                "Restos que os programas e instaladores deixam pelo caminho e não usam mais. "
+                "Os criados nas últimas 24 horas ficam, para não atrapalhar uma instalação que esteja rodando.",
+                alvos_temp_usuario, padrao=True, nivel="seguro"),
+    ItemLimpeza("temp_win", "Arquivos temporários do Windows",
+                "Restos de atualizações e instalações do próprio Windows. Os das últimas 24 horas ficam.",
+                alvos_temp_windows, padrao=True, nivel="seguro"),
+    ItemLimpeza("relatorios_erro", "Relatórios de erros antigos",
+                "Quando um programa trava, o Windows guarda um relatório. Estes já foram enviados ou não "
+                "servem mais.",
+                alvos_relatorios, padrao=True, nivel="seguro"),
     ItemLimpeza("downloads_incompletos", "Downloads que não terminaram",
-                "Arquivos .crdownload, .part e .tmp na pasta Downloads, parados há mais de 7 dias "
-                "(restos de downloads que falharam). Só esses tipos e só na pasta Downloads, sem entrar "
-                "nas subpastas; seus arquivos normais não são tocados.",
-                alvos_downloads),
-    ItemLimpeza("componentes", "Limpeza de componentes do Windows (WinSxS)",
-                "Remove versões antigas de arquivos do sistema substituídas por atualizações. O Windows "
-                "faz isso sozinho depois de 30 dias; aqui é na hora. Demora de 5 a 30 minutos e, "
-                "depois, atualizações antigas não podem ser desinstaladas.",
-                limpar_especial=_limpar_componentes),
+                "Arquivos de downloads que falharam e ficaram pela metade na pasta Downloads há mais de uma "
+                "semana. Seus arquivos normais (fotos, documentos, instaladores) não são tocados.",
+                alvos_downloads, nivel="seguro"),
     ItemLimpeza("lixeira", "Esvaziar a Lixeira",
-                "Atenção: o que estiver na Lixeira não volta mais.",
-                analisar_especial=_analisar_lixeira, limpar_especial=_limpar_lixeira,
+                "Apaga de vez o que está na Lixeira. Depois disso, não dá para recuperar.",
+                analisar_especial=_analisar_lixeira, limpar_especial=_limpar_lixeira, nivel="cuidado",
                 confirmar="A Lixeira será esvaziada e os arquivos não poderão ser recuperados. Continuar?"),
-    ItemLimpeza("dns", "Renovar o cache de DNS",
-                "Resolve site que não abre depois de mudar de rede ou de DNS. Não libera espaço.",
-                libera_espaco=False, limpar_especial=_limpar_dns),
+    ItemLimpeza("navegador_chrome", "Arquivos guardados do Google Chrome", _NAVEGADOR.format("o Chrome"),
+                lambda: _alvos_chromium(_local("Google", "Chrome", "User Data")),
+                fechar_processos=("chrome.exe",), nome_processo="o Chrome", nivel="seguro"),
+    ItemLimpeza("navegador_edge", "Arquivos guardados do Microsoft Edge",
+                _NAVEGADOR.format("o Edge") + " O Edge costuma continuar aberto escondido: se for pulado, "
+                "desligue \"Aumento de inicialização\" nas configurações dele.",
+                lambda: _alvos_chromium(_local("Microsoft", "Edge", "User Data")),
+                fechar_processos=("msedge.exe",), nome_processo="o Edge", nivel="seguro"),
+    ItemLimpeza("navegador_brave", "Arquivos guardados do Brave", _NAVEGADOR.format("o Brave"),
+                lambda: _alvos_chromium(_local("BraveSoftware", "Brave-Browser", "User Data")),
+                fechar_processos=("brave.exe",), nome_processo="o Brave", nivel="seguro"),
+    ItemLimpeza("navegador_operagx", "Arquivos guardados do Opera GX", _NAVEGADOR.format("o Opera GX"),
+                lambda: _alvos_opera("Opera GX Stable"),
+                fechar_processos=("opera.exe",), nome_processo="o Opera GX", nivel="seguro"),
+    ItemLimpeza("navegador_opera", "Arquivos guardados do Opera", _NAVEGADOR.format("o Opera"),
+                lambda: _alvos_opera("Opera Stable"),
+                fechar_processos=("opera.exe",), nome_processo="o Opera", nivel="seguro"),
+    ItemLimpeza("navegador_firefox", "Arquivos guardados do Firefox", _NAVEGADOR.format("o Firefox"),
+                _alvos_firefox, fechar_processos=("firefox.exe",), nome_processo="o Firefox", nivel="seguro"),
+    ItemLimpeza("cache_update", "Atualizações do Windows já baixadas",
+                "Instaladores de atualizações que já foram usados. Durante a limpeza, as atualizações do "
+                "Windows ficam pausadas e voltam sozinhas depois.",
+                alvos_update, parar_servicos=("wuauserv", "BITS"), nivel="avancado"),
+    ItemLimpeza("entrega_otimizada", "Pedaços de atualizações para outros PCs",
+                "O Windows guarda partes das atualizações para mandar a outros computadores da rede. "
+                "Quem apaga é o próprio Windows.",
+                analisar_especial=_analisar_entrega, limpar_especial=_limpar_entrega, nivel="avancado"),
+    ItemLimpeza("shaders", "Arquivos guardados da placa de vídeo (shaders)",
+                "Ajuda quando um jogo fica com a imagem bugada depois de atualizar o driver. Porém os jogos "
+                "podem dar umas travadinhas nas primeiras partidas, enquanto refazem esses arquivos.",
+                alvos_shaders, nivel="cuidado"),
+    ItemLimpeza("miniaturas", "Miniaturas de fotos e vídeos",
+                "As imagens pequenas que aparecem nas pastas. São refeitas sozinhas quando você abre as pastas.",
+                alvos_miniaturas, nivel="avancado"),
+    ItemLimpeza("dumps", "Arquivos das telas azuis",
+                "Quando o PC dá tela azul, o Windows guarda o que estava na memória para investigar. "
+                "Só apague se não precisa descobrir a causa de uma tela azul.",
+                alvos_dumps, nivel="avancado"),
+    ItemLimpeza("logs_windows", "Registros antigos de atualizações",
+                "Anotações que o Windows faz ao instalar atualizações, com mais de uma semana.",
+                alvos_logs, nivel="avancado"),
+    ItemLimpeza("componentes", "Versões antigas de arquivos do Windows",
+                "Apaga cópias antigas que as atualizações substituíram (o Windows faz isso sozinho depois de "
+                "30 dias). Demora de 5 a 30 minutos e, depois, não dá para desinstalar atualizações antigas.",
+                limpar_especial=_limpar_componentes, nivel="avancado"),
+    ItemLimpeza("dns", "Renovar endereços de sites (DNS)",
+                "Resolve quando um site não abre depois de trocar de Wi-Fi ou de internet. Não libera espaço.",
+                libera_espaco=False, limpar_especial=_limpar_dns, nivel="avancado"),
 ]
 
 ITENS_POR_ID = {i.id: i for i in ITENS}

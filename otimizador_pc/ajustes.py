@@ -279,6 +279,7 @@ class Ajuste:
     nome: str
     descricao: str
     passos: list = field(default_factory=list)
+    nivel: str = "seguro"   # "seguro", "cuidado" (tem um porém) ou "avancado" (fica escondido no começo)
 
 
 def _reg(hive, caminho, nome, valor, tipo=REG_DWORD):
@@ -289,32 +290,31 @@ CDM = r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
 AVANCADO = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
 
 AJUSTES = [
-    Ajuste("telemetria", "Reduzir a telemetria (coleta de dados)",
-           "Desliga os serviços DiagTrack e dmwappushservice e pede o nível mínimo de dados. "
-           "No Windows Home e Pro o mínimo aceito é o \"necessário\"; desligar de vez só existe "
-           "no Enterprise e no Education.",
+    Ajuste("telemetria", "Mandar menos dados de uso para a Microsoft",
+           "O Windows envia informações de como você usa o PC. Isto reduz ao mínimo que o Windows "
+           "deixa (no Windows Home e Pro não dá para desligar de vez). Não muda nada no seu dia a dia.",
            [_reg("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "AllowTelemetry", 0),
             _reg("HKLM", r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection", "AllowTelemetry", 0),
             Servico("DiagTrack"), Servico("dmwappushservice")]),
 
-    Ajuste("tarefas_telemetria", "Desligar tarefas agendadas de telemetria",
-           "Compatibility Appraiser e o programa de melhoria da experiência (CEIP). "
-           "As que não existem no seu Windows são puladas.",
+    Ajuste("tarefas_telemetria", "Desligar as tarefas que juntam dados de uso",
+           "Tarefas automáticas do Windows que juntam informações de uso para mandar à Microsoft. "
+           "Não fazem falta. As que não existem no seu Windows são puladas.",
            [Tarefa(r"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser"),
             Tarefa(r"\Microsoft\Windows\Application Experience\ProgramDataUpdater"),
             Tarefa(r"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator"),
             Tarefa(r"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip")]),
 
-    Ajuste("apps_segundo_plano", "Impedir apps da Loja em segundo plano",
-           "Apps da Microsoft Store param de rodar escondidos. Notificações de alguns apps "
-           "(Mail, Agenda, WhatsApp da Loja) podem atrasar.",
+    Ajuste("apps_segundo_plano", "Não deixar apps da Microsoft Store rodando escondidos",
+           "Apps da Loja (como Fotos, Clima e Notícias) param de rodar quando estão fechados, e sobra "
+           "memória. Porém as notificações de apps da Loja (Mail, Agenda, WhatsApp da Loja) podem atrasar.",
            [_reg("HKCU", r"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications", "GlobalUserDisabled", 1),
             _reg("HKCU", r"Software\Microsoft\Windows\CurrentVersion\Search", "BackgroundAppGlobalToggle", 0),
             _reg("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy", "LetAppsRunInBackground", 2)]),
 
-    Ajuste("sugestoes_anuncios", "Tirar sugestões, dicas e anúncios",
-           "Menu Iniciar, tela de bloqueio, Explorador de Arquivos, \"Bem-vindo\" depois das "
-           "atualizações, apps instalados sozinhos e o ID de publicidade.",
+    Ajuste("sugestoes_anuncios", "Tirar propagandas e sugestões do Windows",
+           "Some com anúncios e \"dicas\" do menu Iniciar, da tela de bloqueio e das pastas, e impede "
+           "o Windows de instalar sozinho os apps que ele sugere.",
            [_reg("HKCU", CDM, "SystemPaneSuggestionsEnabled", 0),
             _reg("HKCU", CDM, "SilentInstalledAppsEnabled", 0),
             _reg("HKCU", CDM, "SoftLandingEnabled", 0),
@@ -330,46 +330,53 @@ AJUSTES = [
             _reg("HKCU", r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo", "Enabled", 0)]),
 
     # O id antigo fica para o backup da versão 1 continuar casando.
-    Ajuste("cortana_busca_web", "Busca do menu Iniciar só no PC (sem Bing)",
-           "A busca deixa de mandar o que você digita para a internet e de mostrar resultados "
-           "do Bing. Vale depois de reiniciar ou de sair e entrar na conta.",
+    Ajuste("cortana_busca_web", "Pesquisa do menu Iniciar só no seu PC",
+           "O que você digita na pesquisa do menu Iniciar deixa de ir para a internet (Bing). A pesquisa "
+           "fica mais rápida e mostra só o que está no PC. Vale depois de reiniciar.",
            [_reg("HKCU", r"Software\Policies\Microsoft\Windows\Explorer", "DisableSearchBoxSuggestions", 1),
             _reg("HKCU", r"Software\Microsoft\Windows\CurrentVersion\Search", "BingSearchEnabled", 0),
             _reg("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Search", "DisableWebSearch", 1),
             _reg("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Search", "ConnectedSearchUseWeb", 0)]),
 
-    Ajuste("game_dvr", "Desligar a gravação em segundo plano (Game DVR)",
-           "A Xbox Game Bar para de gravar os últimos minutos de jogo o tempo todo, o que "
-           "custa FPS. O atalho Win+G continua abrindo a barra.",
+    Ajuste("game_dvr", "Parar a gravação automática dos jogos",
+           "A Xbox Game Bar grava o tempo todo os últimos minutos de jogo, o que tira FPS. Isto desliga "
+           "essa gravação; a barra continua abrindo com as teclas Windows + G.",
            [_reg("HKCU", r"System\GameConfigStore", "GameDVR_Enabled", 0),
             _reg("HKCU", r"Software\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled", 0),
             _reg("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\GameDVR", "AllowGameDVR", 0)]),
 
-    Ajuste("mouse_precisao", "Desligar a aceleração do mouse",
-           "Desmarca \"Aumentar precisão do ponteiro\": o cursor anda sempre a mesma distância "
-           "para o mesmo movimento. Bom para mirar em jogos. Vale na hora.",
+    Ajuste("mouse_precisao", "Mouse sem aceleração (melhor para mirar)",
+           "O cursor passa a andar sempre a mesma distância para o mesmo movimento da mão, o que ajuda a "
+           "mirar em jogos. Porém, no começo, o mouse pode parecer diferente. Vale na hora.",
            [Mouse()]),
 
-    Ajuste("energia_desempenho", "Plano de energia Alto desempenho",
-           "O processador não reduz tanto a velocidade. Em notebook, gasta mais bateria e "
-           "esquenta mais; ao reverter, volta o plano que você usava.",
+    Ajuste("energia_desempenho", "Modo de energia Alto desempenho",
+           "O processador para de economizar energia e responde mais rápido. Porém, em notebook, a "
+           "bateria dura menos e ele esquenta mais. Ao desfazer, volta o modo que você usava.",
            [PlanoEnergia()]),
 
-    Ajuste("indexacao_busca", "Desligar a indexação de arquivos (Windows Search)",
-           "Alivia o disco em PCs com HD. A busca de arquivos fica bem mais lenta, e a do "
-           "Outlook pode parar.",
+    Ajuste("indexacao_busca", "Desligar a pesquisa rápida de arquivos",
+           "O Windows fica lendo seus arquivos para achá-los rápido na pesquisa. Desligar alivia PCs com "
+           "HD antigo, mas a pesquisa de arquivos fica bem mais lenta (e a do Outlook pode parar).",
            [Servico("WSearch")]),
 
-    Ajuste("sysmain", "Desligar o SysMain (antigo Superfetch)",
-           "Ajuda quando o HD fica em 100%. Em SSD o ganho é pequeno e os programas podem "
-           "abrir um pouco mais devagar.",
+    Ajuste("sysmain", "Desligar o carregamento antecipado de programas",
+           "O Windows carrega antes os programas que você mais usa (serviço SysMain). Desligar ajuda "
+           "quando o disco vive em 100% em PCs com HD antigo; em SSD o ganho é pequeno.",
            [Servico("SysMain")]),
 
-    Ajuste("hibernacao", "Desligar a hibernação (libera espaço no C:)",
-           "Apaga o hiberfil.sys, que ocupa vários GB. Também desliga a Inicialização Rápida, "
-           "então o PC pode ligar alguns segundos mais devagar.",
+    Ajuste("hibernacao", "Desligar a hibernação (libera alguns GB)",
+           "Apaga o arquivo da hibernação, que ocupa vários GB no disco. Porém o PC pode levar alguns "
+           "segundos a mais para ligar (desliga também a \"Inicialização rápida\").",
            [Hibernacao()]),
 ]
+
+NIVEIS = {"telemetria": "seguro", "tarefas_telemetria": "avancado", "apps_segundo_plano": "cuidado",
+          "sugestoes_anuncios": "seguro", "cortana_busca_web": "seguro", "game_dvr": "seguro",
+          "mouse_precisao": "cuidado", "energia_desempenho": "cuidado", "indexacao_busca": "avancado",
+          "sysmain": "avancado", "hibernacao": "cuidado"}
+for _a in AJUSTES:
+    _a.nivel = NIVEIS.get(_a.id, "avancado")
 
 AJUSTES_POR_ID = {a.id: a for a in AJUSTES}
 

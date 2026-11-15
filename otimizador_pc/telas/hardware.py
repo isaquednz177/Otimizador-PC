@@ -15,7 +15,7 @@ SAUDE = {"Healthy": ("saudável", t.OK), "Warning": ("com aviso", t.ACENTO), "Un
 
 
 class Hardware(Pagina):
-    titulo = "Hardware"
+    titulo = "Peças do PC"
     subtitulo = ("Memória, discos, vídeo, bateria e atualizações. O que aqui faria o PC mais rápido "
                  "aparece em âmbar.")
 
@@ -87,7 +87,7 @@ class Hardware(Pagina):
 
         # memória
         m = r.memoria
-        c = self._cartao(0, 0, "Memória")
+        c = self._cartao(0, 0, "Memória (RAM)")
         self._grande(c, formatar_tamanho(m.total) if m.total else "—",
                      " · ".join(x for x in (m.tipo, f"{len(m.pentes)} pente(s)",
                                             f"{m.encaixes} encaixe(s)" if m.encaixes else "",
@@ -101,7 +101,7 @@ class Hardware(Pagina):
         ctk.CTkFrame(c, height=12, width=10, fg_color="transparent").pack(pady=(0, 3))  # sem cobrir a borda
 
         # vídeo e processador
-        c = self._cartao(0, 1, "Processador e vídeo")
+        c = self._cartao(0, 1, "Processador e placa de vídeo")
         self._grande(c, r.cpu.replace("(R)", "").replace("(TM)", "") or "—", r.nucleos, tamanho=20)
         for v in r.videos:
             idade = f"{v['dias'] // 30} meses" if v["dias"] is not None else "?"
@@ -114,7 +114,7 @@ class Hardware(Pagina):
         ctk.CTkFrame(c, height=12, width=10, fg_color="transparent").pack(pady=(0, 3))  # sem cobrir a borda
 
         # discos
-        c = self._cartao(1, 0, "Discos")
+        c = self._cartao(1, 0, "Disco (onde ficam os arquivos)")
         for d in r.discos:
             texto, cor = SAUDE.get(d["saude"], (d["saude"] or "?", t.SUAVE))
             t.rotulo(c, d["nome"], "corpo_forte", 13).pack(anchor="w", padx=18, pady=(8, 0))
@@ -127,7 +127,7 @@ class Hardware(Pagina):
             if d["horas"]:
                 self._par(c, "horas ligado", f"{int(d['horas']):,}".replace(",", "."))
         if r.discos and all(d["desgaste"] is None for d in r.discos):
-            self._nota(c, "Desgaste e temperatura só aparecem com Administrador.")
+            self._nota(c, "Desgaste e temperatura só aparecem com permissão de Administrador.")
         ctk.CTkFrame(c, height=12, width=10, fg_color="transparent").pack(pady=(0, 3))  # sem cobrir a borda
 
         # bateria e Windows

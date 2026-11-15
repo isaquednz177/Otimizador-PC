@@ -52,6 +52,8 @@ ICONES = {
     "subir": "", "atualizar": "", "fechar": "", "escudo": "", "aviso": "",
 }
 
+ICONES["ajuda"] = ""   # ponto de interrogação num círculo
+
 _familias = {}
 _imagens = {}   # guarda as imagens (o Tk apaga imagem sem referência)
 
@@ -142,6 +144,30 @@ def rotulo(pai, texto="", tipo="corpo", tamanho=13, cor=TEXTO, **kw):
     kw.setdefault("anchor", "w")
     kw.setdefault("justify", "left")
     return ctk.CTkLabel(pai, text=texto, font=fonte(tipo, tamanho), text_color=cor, **kw)
+
+
+def texto_longo(pai, texto="", tipo="corpo", tamanho=12, cor=SUAVE, **kw):
+    """
+    Texto que quebra a linha na largura que ele realmente tem (e não numa largura fixa,
+    que corta o texto quando a janela é menor). Coloque com fill="x" ou sticky="ew".
+    """
+    r = rotulo(pai, texto, tipo, tamanho, cor, wraplength=300, **kw)
+    estado = {"ocupado": False}
+
+    def ajustar(evento):
+        if estado["ocupado"]:
+            return
+        largura = int(evento.width / escala(r)) - 6
+        if largura > 40 and abs(largura - r._wraplength) > 4:
+            estado["ocupado"] = True
+            try:
+                r.configure(wraplength=largura)
+            finally:
+                estado["ocupado"] = False
+    # no quadro de FORA (o tk.Frame do CTkLabel): a largura dele vem do layout, não do texto.
+    # (o bind do customtkinter iria para o texto de dentro e entraria em laço)
+    tk.Misc.bind(r, "<Configure>", ajustar, "+")
+    return r
 
 
 def icone(pai, nome, tamanho=16, cor=SUAVE, **kw):
@@ -277,6 +303,108 @@ class Letreiro(tk.Canvas):
                 fim = caixa[3] + int(12 * e)
         if abs(fim - h) > 2:  # a altura acompanha o texto (que quebra conforme a largura)
             self.configure(height=fim)
+
+
+COR_NIVEL = {"bom": "#A3B57E", "atencao": LARANJA, "ruim": ACENTO}
+
+
+class Dica:
+    """Caixinha de explicação que aparece ao parar o mouse em cima de um elemento."""
+
+    def __init__(self, widget, texto, largura=320):
+        self.widget, self.texto, self.largura = widget, texto, largura
+        self._janela = None
+        self._espera = None
+        widget.bind("<Enter>", self._agendar, add="+")
+        widget.bind("<Leave>", self._esconder, add="+")
+        widget.bind("<ButtonPress>", self._esconder, add="+")
+
+    def _agendar(self, _=None):
+        self._cancelar()
+        self._espera = self.widget.after(350, self._mostrar)
+
+    def _cancelar(self):
+        if self._espera:
+            self.widget.after_cancel(self._espera)
+            self._espera = None
+
+    def _mostrar(self):
+        if self._janela or not self.widget.winfo_exists():
+            return
+        x = self.widget.winfo_rootx() + 12
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
+        self._janela = jan = tk.Toplevel(self.widget)
+        jan.wm_overrideredirect(True)
+        jan.attributes("-topmost", True)
+        jan.configure(bg=ORNATO)
+        e = escala(self.widget)
+        tk.Label(jan, text=self.texto, justify="left", wraplength=int(self.largura * e), bg=PAINEL2, fg=TEXTO,
+                 font=(familia("corpo"), -int(13 * e)), padx=int(10 * e), pady=int(8 * e)).pack(padx=1, pady=1)
+        jan.wm_geometry(f"+{x}+{y}")
+
+    def _esconder(self, _=None):
+        self._cancelar()
+        if self._janela:
+            self._janela.destroy()
+            self._janela = None
+
+
+def ajuda(pai, texto, fundo="transparent"):
+    """Um "?" pequeno que explica o termo ao lado quando o mouse para em cima."""
+    r = ctk.CTkLabel(pai, text="?", width=18, height=18, corner_radius=0, fg_color=PAINEL2, text_color=SUAVE,
+                     font=fonte("titulo", 11), cursor="question_arrow")
+    Dica(r, texto)
+    return r
+
+
+NIVEIS = {
+    "seguro": ("seguro", "#A3B57E", "Pode usar sem medo: não apaga nada importante e não muda nada que você vá sentir falta."),
+    "cuidado": ("tem um porém", LARANJA, "Funciona, mas tem um efeito colateral. Leia a explicação antes de marcar."),
+    "avancado": ("avançado", FRACO, "Para quem sabe o que está fazendo. O ganho costuma ser pequeno."),
+}
+
+
+def etiqueta(pai, nivel):
+    """Etiqueta "seguro" / "tem um porém" / "avançado" ao lado do nome de uma opção."""
+    texto, cor, explicacao = NIVEIS[nivel]
+    r = ctk.CTkLabel(pai, text=texto, height=20, corner_radius=0, fg_color="transparent", text_color=cor,
+                     font=fonte("titulo", 11))
+    Dica(r, explicacao)
+    return r
+
+
+class Recolhivel:
+    """Opções avançadas escondidas atrás de um botão (para não assustar quem é leigo)."""
+
+    def __init__(self, pai, quantos, texto="opções avançadas"):
+        self.texto, self.quantos, self.aberto = texto, quantos, False
+        self.botao = botao(pai, "", self.alternar, "fantasma", anchor="w")
+        self.botao.pack(fill="x", padx=8, pady=(16, 0))
+        self.corpo = ctk.CTkFrame(pai, fg_color="transparent")
+        self._rotular()
+
+    def _rotular(self):
+        if self.aberto:
+            self.botao.configure(text=f"▴  esconder as {self.texto}")
+        else:
+            self.botao.configure(text=f"▾  mostrar as {self.texto} ({self.quantos})")
+
+    def alternar(self):
+        self.aberto = not self.aberto
+        if self.aberto:
+            self.corpo.pack(fill="x", after=self.botao)
+        else:
+            self.corpo.pack_forget()
+        self._rotular()
+
+
+def nome_com_etiqueta(pai, texto, variavel, nivel):
+    """Caixa de marcar com o nome e, ao lado, a etiqueta do nível ("seguro", "tem um porém"...)."""
+    f = ctk.CTkFrame(pai, fg_color="transparent")
+    caixa_ = caixa(f, texto, variavel)
+    caixa_.pack(side="left")
+    etiqueta(f, nivel).pack(side="left", padx=(10, 0))
+    return f, caixa_
 
 
 def ao_clicar(widget, funcao):

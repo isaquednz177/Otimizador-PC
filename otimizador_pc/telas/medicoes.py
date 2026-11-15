@@ -6,14 +6,16 @@ import tkinter as tk
 import customtkinter as ctk
 
 from otimizador_pc import boot
+from otimizador_pc import explicar as ex
 from otimizador_pc import tema as t
 from otimizador_pc.telas.base import Pagina
 
 
 class Medicoes(Pagina):
     titulo = "Tempo para ligar"
-    subtitulo = ("Quanto o PC levou para ficar pronto em cada vez que ligou, pelo registro do próprio "
-                 "Windows. A linha tracejada marca quando ajustes foram aplicados.")
+    subtitulo = ("Quanto tempo o PC leva, desde que você aperta o botão, até ficar pronto para usar. Cada barra "
+                 "é uma vez que ele ligou; a linha vermelha tracejada marca quando ajustes foram feitos, para ver "
+                 "se ajudou.")
 
     def montar(self):
         self.botao_topo("atualizar", self.atualizar)
@@ -57,18 +59,21 @@ class Medicoes(Pagina):
         lista, erro = resultado
         self.lista = lista
         self.marcos = boot.datas_dos_ajustes(self.j.backup.dados)
-        nota = ("Com a Inicialização Rápida ligada, ligar depois de \"Desligar\" não entra aqui (é uma "
-                "hibernação); reiniciar entra. Os números variam com atualizações do Windows e com o que "
-                "abre junto: compare médias, não uma vez só.")
+        nota = ("Atenção: se a \"Inicialização rápida\" do Windows estiver ligada, ligar depois de \"Desligar\" não "
+                "entra aqui; só \"Reiniciar\" entra. O tempo muda bastante de uma vez para outra (atualizações, "
+                "programas que abrem junto): compare a média, não uma vez só.")
         if erro:
             self.num["ultimo"][0].configure(text="—")
-            self.num["ultimo"][1].configure(text=erro)
+            self.num["ultimo"][1].configure(
+                text="abra com permissão de Administrador para ver" if "Administrador" in erro else erro)
             self.lbl_nota.configure(text=nota)
             self._desenhar()
             return
         seg = [b.total_ms / 1000 for b in lista]
+        nivel, curto, _ = ex.ligar(sum(seg[-5:]) / len(seg[-5:]))
         self.num["ultimo"][0].configure(text=f"{seg[-1]:.0f} s")
-        self.num["ultimo"][1].configure(text=lista[-1].quando.strftime("%d/%m %H:%M"))
+        self.num["ultimo"][1].configure(text=f"{lista[-1].quando:%d/%m %H:%M}  ·  {curto}",
+                                        text_color=t.COR_NIVEL[nivel])
         self.num["media"][0].configure(text=f"{sum(seg) / len(seg):.0f} s")
         self.num["media"][1].configure(text=f"das últimas {len(seg)} vezes")
         self.num["melhor"][0].configure(text=f"{min(seg):.0f} s")

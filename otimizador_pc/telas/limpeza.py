@@ -18,11 +18,12 @@ SEM_ADMIN = {"temp_user", "navegador_chrome", "navegador_edge", "navegador_brave
 
 class Limpeza(Pagina):
     titulo = "Limpeza"
-    subtitulo = "\"Analisar\" mostra quanto cada item libera, sem apagar nada. Arquivos em uso ficam."
+    subtitulo = ("Apaga arquivos que só ocupam espaço. Clique em \"ver quanto libera\" para saber o tamanho "
+                 "antes (nada é apagado); depois, em \"limpar\". Arquivos em uso são pulados.")
 
     def montar(self):
-        self.j.registrar_botao(self.botao_topo("analisar", self.acao_analisar))
-        self.j.registrar_botao(self.botao_topo("limpar selecionados", self.acao_limpar, "principal"))
+        self.j.registrar_botao(self.botao_topo("ver quanto libera", self.acao_analisar, largura=170))
+        self.j.registrar_botao(self.botao_topo("limpar o que está marcado", self.acao_limpar, "principal", largura=240))
 
         cartao = t.cartao(self.corpo)
         cartao.pack(fill="both", expand=True)
@@ -30,28 +31,37 @@ class Limpeza(Pagina):
         area.pack(fill="both", expand=True, padx=8, pady=8)
         self.itens = {}
         self.tamanhos = {}
-        for item in limpeza.ITENS:
-            if not item.disponivel():
-                continue
-            var = ctk.BooleanVar(value=item.padrao)
-            var.trace_add("write", lambda *_: self._somar())
-            f = ctk.CTkFrame(area, fg_color="transparent")
-            f.pack(fill="x", padx=8, pady=(10, 0))
-            f.grid_columnconfigure(0, weight=1)
-            t.caixa(f, item.nome, var).grid(row=0, column=0, sticky="w")
-            lado = t.rotulo(f, "" if item.libera_espaco else "não libera espaço", "numero", 14, t.SUAVE,
-                            anchor="e")
-            lado.grid(row=0, column=1, sticky="e", padx=8)
-            t.rotulo(f, item.descricao, "corpo", 12, t.FRACO, wraplength=720).grid(
-                row=1, column=0, columnspan=2, sticky="w", padx=(28, 0), pady=(2, 0))
-            self.itens[item.id] = (item, var, lado)
+        disponiveis = [i for i in limpeza.ITENS if i.disponivel()]
+        basicos = [i for i in disponiveis if i.nivel != "avancado"]
+        avancados = [i for i in disponiveis if i.nivel == "avancado"]
+        for item in basicos:
+            self._linha(area, item)
+        if avancados:
+            recolhivel = t.Recolhivel(area, len(avancados))
+            for item in avancados:
+                self._linha(recolhivel.corpo, item)
 
         rodape = ctk.CTkFrame(self.corpo, fg_color="transparent")
         rodape.pack(fill="x", pady=(10, 0))
-        t.botao(rodape, "só os recomendados", self._recomendados, "fantasma").pack(side="left")
+        t.botao(rodape, "marcar só os recomendados", self._recomendados, "fantasma").pack(side="left")
         t.botao(rodape, "desmarcar tudo", lambda: self._marcar(False), "fantasma").pack(side="left", padx=6)
         self.lbl_total = t.rotulo(rodape, "", "numero", 15, t.TEXTO)
         self.lbl_total.pack(side="right", padx=4)
+
+    def _linha(self, pai, item):
+        var = ctk.BooleanVar(value=item.padrao)
+        var.trace_add("write", lambda *_: self._somar())
+        f = ctk.CTkFrame(pai, fg_color="transparent")
+        f.pack(fill="x", padx=8, pady=(10, 0))
+        f.grid_columnconfigure(0, weight=1)
+        nome, _ = t.nome_com_etiqueta(f, item.nome, var, item.nivel)
+        nome.grid(row=0, column=0, sticky="w")
+        lado = t.rotulo(f, "" if item.libera_espaco else "não libera espaço", "numero", 14, t.SUAVE, anchor="e")
+        lado.grid(row=0, column=1, sticky="e", padx=8)
+        t.texto_longo(f, item.descricao, "corpo", 12, t.FRACO).grid(
+            row=1, column=0, columnspan=2, sticky="ew", padx=(28, 0), pady=(2, 0))
+        self.itens[item.id] = (item, var, lado)
+        return f
 
     def _marcar(self, valor):
         for _, var, _ in self.itens.values():
@@ -72,17 +82,17 @@ class Limpeza(Pagina):
                     sem = True
                 else:
                     total += self.tamanhos[iid]
-        self.lbl_total.configure(text=f"selecionado: {formatar_tamanho(total)}" + (" +" if sem else ""))
+        self.lbl_total.configure(text=f"o que está marcado libera: {formatar_tamanho(total)}" + (" ou mais" if sem else ""))
 
     def _mostrar_tamanho(self, iid, res):
         item, _, lado = self.itens[iid]
         if res is None:
             self.tamanhos[iid] = None
-            lado.configure(text="sem estimativa", text_color=t.FRACO)
+            lado.configure(text="não dá para saber antes", text_color=t.FRACO)
         else:
             self.tamanhos[iid] = res.bytes
             grande = res.bytes >= 500 << 20
-            lado.configure(text=formatar_tamanho(res.bytes) if res.apagados else "vazio",
+            lado.configure(text=formatar_tamanho(res.bytes) if res.apagados else "nada para limpar",
                            text_color=t.ACENTO if grande else (t.TEXTO if res.apagados else t.FRACO))
         self._somar()
 
@@ -97,7 +107,7 @@ class Limpeza(Pagina):
             ctl.checar()
             ctl.avisar(f"analisando: {item.nome}", n / len(itens))
             lado = self.itens[iid][2]
-            self.j.no_principal(lambda r=lado: r.configure(text="analisando...", text_color=t.FRACO))
+            self.j.no_principal(lambda r=lado: r.configure(text="medindo...", text_color=t.FRACO))
             try:
                 res = limpeza.analisar_item(item, self.s, ctl)
             except Cancelado:
@@ -107,7 +117,7 @@ class Limpeza(Pagina):
                 res = None
             self.j.no_principal(self._mostrar_tamanho, iid, res)
             total += res.bytes if res else 0
-        self.log(f"Análise pronta: {formatar_tamanho(total)} no total (fora os itens sem estimativa).")
+        self.log(f"Pronto: dá para liberar {formatar_tamanho(total)} (fora os itens que não dá para saber antes).")
 
     # ------------------------------------------------------------ limpar
     def acao_limpar(self):

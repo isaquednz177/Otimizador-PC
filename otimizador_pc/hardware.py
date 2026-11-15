@@ -208,7 +208,7 @@ def recomendacoes(r: Relatorio, hoje: date = None) -> list:
         tamanho = m.pentes[0]["tamanho"] // GB if m.pentes else 8
         recs.append(("aviso",
                      f"Só {m.total // GB} GB de memória e {m.livres} encaixe livre. Um segundo pente de "
-                     f"{tamanho} GB {m.tipo} igual ao seu dobra a memória e liga o dual channel, que também "
+                     f"{tamanho} GB {m.tipo} igual ao seu dobra a memória e faz os dois trabalharem juntos (dual channel), o que também "
                      "acelera muito o vídeo integrado. É a melhoria que mais faria diferença neste PC. "
                      "(Confira o encaixe livre no manual: em alguns notebooks parte da memória é soldada.)", ""))
     for v in r.videos:

@@ -11,8 +11,8 @@ from otimizador_pc.util import PASTA_LOGS
 
 
 class RegistroPagina(Pagina):
-    titulo = "Registro"
-    subtitulo = "Tudo o que o programa fez nesta sessão. Cada sessão também fica salva num arquivo."
+    titulo = "Histórico"
+    subtitulo = "Tudo o que o programa fez desde que foi aberto, linha por linha. Útil se algo der errado: dá para mandar para alguém ajudar."
 
     def montar(self):
         self.botao_topo("abrir a pasta dos registros", lambda: self.s.abrir_no_explorador(PASTA_LOGS))

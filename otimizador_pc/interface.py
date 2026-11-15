@@ -78,7 +78,7 @@ class Janela(ctk.CTk):
         if self.backup.aviso:
             self.log("AVISO: " + self.backup.aviso)
         if not admin:
-            self.log("Sem Administrador: dá para ver e analisar, mas não para mudar o sistema.")
+            self.log("Aberto só para olhar (sem permissão de Administrador). Para fazer mudanças, feche e abra de novo e responda Sim no aviso do Windows.")
         if self.backup.dados.get("modo_jogo", {}).get("ativo"):
             self.log("O modo jogo ficou ligado da última vez. Para voltar tudo, use \"sair do modo jogo\".")
         self.atualizar_lateral()
@@ -115,7 +115,10 @@ class Janela(ctk.CTk):
         linha = ctk.CTkFrame(rodape, fg_color="transparent")
         linha.pack(anchor="w")
         t.icone(linha, "escudo", 13, cor).pack(side="left")
-        t.rotulo(linha, "  Administrador" if self.admin else "  Sem Administrador", "corpo", 11, cor).pack(side="left")
+        perm = t.rotulo(linha, "  pode fazer mudanças" if self.admin else "  só pode olhar", "corpo", 11, cor)
+        perm.pack(side="left")
+        t.Dica(perm, "Aberto como Administrador: pode limpar, fazer ajustes e desfazer." if self.admin else
+               "Aberto sem permissão de Administrador: dá para ver tudo, mas não para mudar o Windows. Para mudar, feche e abra de novo e responda Sim no aviso do Windows.")
 
     def _item_nav(self, pai, linha, chave, nome):
         f = ctk.CTkFrame(pai, fg_color="transparent", corner_radius=0, height=40, cursor="hand2")
@@ -349,7 +352,7 @@ class Janela(ctk.CTk):
     def precisa_admin(self) -> bool:
         if self.admin:
             return True
-        messagebox.showwarning(APP_NOME, "Isto precisa de Administrador. Feche o programa, abra de novo "
+        messagebox.showwarning(APP_NOME, "Para fazer isto, o programa precisa de permissão de Administrador. Feche, abra de novo "
                                          "e responda Sim no aviso do Windows.")
         return False
 

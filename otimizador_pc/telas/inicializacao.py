@@ -15,9 +15,10 @@ def _curto(texto, n=110):
 
 
 class Inicializacao(Pagina):
-    titulo = "Inicialização"
-    subtitulo = ("O que abre junto com o Windows. Desligar não apaga nada: é a mesma marca do "
-                 "Gerenciador de Tarefas, e dá para ligar de novo a qualquer hora.")
+    titulo = "Abrem com o Windows"
+    subtitulo = ("Programas que começam sozinhos quando o PC liga. Cada um deixa o PC mais demorado para ficar "
+                 "pronto e gasta memória. Desligar não apaga nada: o programa continua instalado e você abre "
+                 "quando quiser.")
 
     def montar(self):
         self.botao_topo("atualizar", self.atualizar)
@@ -45,7 +46,7 @@ class Inicializacao(Pagina):
         if self.j.admin:
             tarefas = ini.listar_tarefas()
         else:
-            erro_tarefas = "Precisa de Administrador para ler as tarefas agendadas."
+            erro_tarefas = "Para ver esta lista, abra o programa com permissão de Administrador."
         return {"programas": ini.listar(s), "servicos": ini.listar_servicos(s, self.j.backup),
                 "tarefas": tarefas, "erro_tarefas": erro_tarefas,
                 "removidos": dict(self.j.backup.dados.get("inicializacao_removida", {}))}
@@ -74,9 +75,9 @@ class Inicializacao(Pagina):
             w.destroy()
 
         if d["removidos"]:
-            self._secao("Apagados pela versão antiga",
-                        "A versão 1.1 apagava os programas da inicialização em vez de só desligar. "
-                        "Restaurar põe de volta como era.")
+            self._secao("Apagados pela versão antiga deste programa",
+                        "A versão antiga apagava esses programas da lista em vez de só desligar. "
+                        "\"Restaurar\" põe de volta como era.")
             for chave, item in d["removidos"].items():
                 f = self._linha(item["nome"], _curto(str(item.get("valor", ""))),
                                 "é o ícone da Segurança do Windows: vale restaurar" if item["nome"] == "SecurityHealth" else "")
@@ -84,7 +85,7 @@ class Inicializacao(Pagina):
                         altura=28).grid(row=0, column=1, rowspan=2, sticky="e")
 
         ligados = sum(1 for p in d["programas"] if p.ativo)
-        self._secao(f"Programas  ·  {ligados} de {len(d['programas'])} ligados", "")
+        self._secao(f"Programas  ·  {ligados} de {len(d['programas'])} abrem sozinhos", "Desligue o que você não precisa logo que liga o PC (Steam, Discord, Spotify...). Você ainda pode abrir cada um quando quiser.")
         if not d["programas"]:
             t.rotulo(self.area, "Nenhum.", "corpo", 12, t.FRACO).pack(anchor="w", padx=12, pady=6)
         for p in d["programas"]:
@@ -93,26 +94,27 @@ class Inicializacao(Pagina):
                 row=0, column=1, rowspan=2, sticky="e")
 
         auto = sum(1 for x in d["servicos"] if x.automatico)
-        self._secao(f"Serviços de outros programas  ·  {auto} automáticos",
-                    "Em MANUAL o serviço não abre sozinho com o Windows: o programa dele o chama quando "
-                    "precisa. Serviços do Windows e do antivírus não aparecem aqui.")
+        self._secao(f"Programas que rodam escondidos (serviços)  ·  {auto} ligam sozinhos",
+                    "Partes de programas que rodam sem janela (como atualizadores). Em \"só quando precisa\", "
+                    "eles não ligam com o Windows: o programa dono chama quando precisar. Os do Windows e do "
+                    "antivírus não aparecem aqui, para não estragar nada.")
         if not d["servicos"]:
             t.rotulo(self.area, "Nenhum.", "corpo", 12, t.FRACO).pack(anchor="w", padx=12, pady=6)
         for x in d["servicos"]:
-            aviso = "atualizador: em manual, o programa ainda se atualiza quando você o abre" if x.atualizador else ""
+            aviso = "é um atualizador: o programa continua se atualizando quando você abrir ele" if x.atualizador else ""
             f = self._linha(x.exibicao, f"{x.nome}  ·  {_curto(x.caminho.strip(chr(34)))}", aviso)
             t.Alternador(f, x.automatico, lambda b, ligar, item=x: self._servico(b, item, ligar),
-                         textos=("automático", "manual")).grid(row=0, column=1, rowspan=2, sticky="e")
+                         textos=("liga sozinho", "só quando precisa"), largura=150).grid(row=0, column=1, rowspan=2, sticky="e")
 
-        self._secao(f"Tarefas agendadas de outros programas  ·  {len(d['tarefas'])}",
-                    "Atualizadores e ajudantes que o Agendador de Tarefas abre sozinho. As do Windows não "
-                    "aparecem aqui.")
+        self._secao(f"Tarefas automáticas de outros programas  ·  {len(d['tarefas'])}",
+                    "Coisas que o Windows roda sozinho em certos horários para outros programas (quase sempre "
+                    "atualizadores). As do próprio Windows não aparecem aqui.")
         if d["erro_tarefas"]:
             t.rotulo(self.area, d["erro_tarefas"], "corpo", 12, t.FRACO).pack(anchor="w", padx=12, pady=6)
         elif not d["tarefas"]:
             t.rotulo(self.area, "Nenhuma.", "corpo", 12, t.FRACO).pack(anchor="w", padx=12, pady=6)
         for tf in d["tarefas"]:
-            aviso = "atualizador: desligado, o programa só se atualiza quando você o abre" if tf.atualizador else ""
+            aviso = "é um atualizador: desligado, o programa só se atualiza quando você abrir ele" if tf.atualizador else ""
             exe = os.path.basename(tf.comando.split('"')[1] if tf.comando.startswith('"') else tf.comando.split(" ")[0])
             f = self._linha(tf.nome, f"{tf.quando}  ·  {exe or 'sem programa'}" + (f"  ·  {tf.autor}" if tf.autor else ""),
                             aviso)

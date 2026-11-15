@@ -12,13 +12,13 @@ from otimizador_pc.telas.base import Pagina
 
 
 class Reverter(Pagina):
-    titulo = "Reverter"
-    subtitulo = ("Volta cada ajuste para como estava ANTES (não para o padrão de fábrica). "
-                 "Se algo falhar, continua guardado aqui para tentar de novo.")
+    titulo = "Desfazer ajustes"
+    subtitulo = ("Arrependeu de algum ajuste? Marque e clique em \"voltar\": ele fica exatamente como estava "
+                 "antes. Se algo der errado, o ajuste continua aqui para você tentar de novo.")
 
     def montar(self):
-        self.j.registrar_botao(self.botao_topo("restaurar tudo", lambda: self.acao(tudo=True), "perigo"))
-        self.j.registrar_botao(self.botao_topo("restaurar selecionados", self.acao, "principal"))
+        self.j.registrar_botao(self.botao_topo("voltar tudo", lambda: self.acao(tudo=True), "perigo"))
+        self.j.registrar_botao(self.botao_topo("voltar o que está marcado", self.acao, "principal", largura=230))
         cartao = t.cartao(self.corpo)
         cartao.pack(fill="both", expand=True)
         self.area = t.rolavel(cartao)
@@ -38,7 +38,7 @@ class Reverter(Pagina):
         dados = self.j.backup.dados
         aplicados = dados.get("ajustes", {})
         if not aplicados:
-            t.rotulo(self.area, "Nenhum ajuste aplicado por este programa.", "corpo", 13, t.SUAVE).pack(
+            t.rotulo(self.area, "Nenhum ajuste feito por este programa ainda. Quando fizer, ele aparece aqui.", "corpo", 13, t.SUAVE).pack(
                 anchor="w", padx=12, pady=12)
         for aid, reg in aplicados.items():
             var = ctk.BooleanVar(value=False)
@@ -46,18 +46,17 @@ class Reverter(Pagina):
             f.pack(fill="x", padx=8, pady=(10, 0))
             nome = aj.AJUSTES_POR_ID[aid].nome if aid in aj.AJUSTES_POR_ID else reg.get("nome", aid)
             t.caixa(f, nome, var).pack(anchor="w")
-            n = len(reg.get("passos", {}))
-            t.rotulo(f, f"aplicado em {reg.get('data') or '?'}  ·  {n} mudança(s) guardada(s)", "corpo", 12,
+            t.rotulo(f, f"feito em {reg.get('data') or '?'}", "corpo", 12,
                      t.FRACO).pack(anchor="w", padx=(28, 0))
             self.vars[aid] = var
         extra = len(dados.get("servicos_terceiros", {}))
-        self.lbl_extra.configure(text=f"{extra} serviço(s) de outros programas estão em manual: eles voltam pela "
-                                      "página Inicialização." if extra else "")
+        self.lbl_extra.configure(text=f"{extra} programa(s) escondido(s) estão em \"só quando precisa\": para voltar, "
+                                      "use a página \"Abrem com o Windows\"." if extra else "")
 
     def acao(self, tudo=False):
         ids = list(self.vars) if tudo else [a for a, v in self.vars.items() if v.get()]
         if not ids:
-            messagebox.showinfo(APP_NOME, "Não há nada marcado para restaurar.")
+            messagebox.showinfo(APP_NOME, "Marque na lista o que você quer voltar.")
             return
         if not self.j.precisa_admin():
             return

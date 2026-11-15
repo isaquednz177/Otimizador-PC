@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """As páginas do programa, na ordem do menu: (chave, nome no menu, classe)."""
 
+from otimizador_pc.telas.ajuda import Ajuda
 from otimizador_pc.telas.ajustes import Ajustes
 from otimizador_pc.telas.desempenho import Desempenho
 from otimizador_pc.telas.espaco import Espaco
@@ -18,11 +19,12 @@ PAGINAS = [
     ("desempenho", "Desempenho", Desempenho),
     ("modo_jogo", "Modo jogo", ModoJogo),
     ("limpeza", "Limpeza", Limpeza),
-    ("espaco", "Espaço em disco", Espaco),
-    ("ajustes", "Ajustes", Ajustes),
-    ("inicializacao", "Inicialização", Inicializacao),
-    ("hardware", "Hardware", Hardware),
+    ("espaco", "Espaço no disco", Espaco),
+    ("ajustes", "Ajustes do Windows", Ajustes),
+    ("inicializacao", "Abrem com o Windows", Inicializacao),
+    ("hardware", "Peças do PC", Hardware),
     ("medicoes", "Tempo para ligar", Medicoes),
-    ("reverter", "Reverter", Reverter),
-    ("registro", "Registro", RegistroPagina),
+    ("reverter", "Desfazer ajustes", Reverter),
+    ("registro", "Histórico", RegistroPagina),
+    ("ajuda", "Ajuda", Ajuda),
 ]
