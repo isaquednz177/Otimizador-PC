@@ -1,0 +1,369 @@
+# -*- coding: utf-8 -*-
+"""
+A janela: menu lateral, páginas e barra de status.
+
+Regra desta tela: o trabalho pesado roda numa thread, e a thread NUNCA mexe
+nos widgets. Ela manda pedidos por uma fila (`no_principal`), que a janela
+atende a cada 60 ms. Perguntas no meio do trabalho usam `perguntar`, que
+espera a resposta da janela.
+
+- `trabalhar(funcao, titulo)`: tarefa que muda o sistema; uma por vez, com
+  barra de progresso e botão de cancelar. `funcao` recebe um Controle.
+- `em_segundo_plano(funcao, depois)`: leitura rápida (não trava os botões).
+"""
+
+import queue
+import threading
+from tkinter import messagebox
+
+import customtkinter as ctk
+
+import os
+
+from otimizador_pc import APP_NOME, APP_VERSAO, atualizacao, hardware, info
+from otimizador_pc import tema as t
+from otimizador_pc.backup import Backup
+from otimizador_pc.config import Config
+from otimizador_pc.controle import Cancelado, Controle
+from otimizador_pc.registro import Registro
+from otimizador_pc.sistema import Sistema
+from otimizador_pc.telas import PAGINAS
+from otimizador_pc.util import ARQUIVO_BACKUP, PASTA_LOGS, formatar_tamanho
+
+
+class Janela(ctk.CTk):
+
+    def __init__(self, admin: bool):
+        super().__init__(fg_color=t.FUNDO)
+        icone = os.path.join(t.ARTE, "icone.ico")
+        if os.path.exists(icone):
+            # chamado logo no início: assim o customtkinter não troca pelo ícone dele
+            self.iconbitmap(icone)
+        t.preparar_fontes()
+        self.admin = admin
+        self.title(f"{APP_NOME} {APP_VERSAO}")
+        self.geometry("1180x780")
+        self.minsize(1000, 660)
+
+        self.s = Sistema()
+        self.log = Registro(PASTA_LOGS)
+        self.backup = Backup(ARQUIVO_BACKUP)
+        self.config = Config()
+        self.hardware = None          # leitura do hardware, feita uma vez (leva ~20 s)
+        self.historico = info.Historico()  # memória e processador dos últimos 3 minutos
+        self._processador = info.Processador()
+        self.amostra = info.resumo()
+        self._esperando_hardware = None
+        self._fila_ui = queue.Queue()
+        self.ocupado = False
+        self.ctl = None
+        self.botoes_acao = []
+        self.linhas_log = []
+        self.paginas, self.nav = {}, {}
+        self.atual = None
+
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self._lateral()
+        self.conteudo = ctk.CTkFrame(self, fg_color=t.FUNDO, corner_radius=0)
+        self.conteudo.grid(row=0, column=1, sticky="nsew")
+        self.conteudo.grid_columnconfigure(0, weight=1)
+        self.conteudo.grid_rowconfigure(0, weight=1)
+        self._barra_status()
+
+        self.protocol("WM_DELETE_WINDOW", self._fechar)
+        self.after(60, self._bombear)
+
+        self.log(f"{APP_NOME} {APP_VERSAO} aberto.")
+        if self.backup.aviso:
+            self.log("AVISO: " + self.backup.aviso)
+        if not admin:
+            self.log("Aberto só para olhar (sem permissão de Administrador). Para fazer mudanças, feche e abra de novo e responda Sim no aviso do Windows.")
+        if self.backup.dados.get("modo_jogo", {}).get("ativo"):
+            self.log("O modo jogo ficou ligado da última vez. Para voltar tudo, use \"sair do modo jogo\".")
+        self.atualizar_lateral()
+        self.after(2000, self._amostrar)
+        self.ir("inicio")
+        self.em_segundo_plano(lambda: atualizacao.verificar(APP_VERSAO), self._versao_nova)
+
+    # ================================================================ estrutura
+    def _lateral(self):
+        lado = ctk.CTkFrame(self, fg_color=t.LATERAL, corner_radius=0, width=228)
+        lado.grid(row=0, column=0, rowspan=2, sticky="nsw")
+        lado.grid_propagate(False)
+        lado.grid_columnconfigure(0, weight=1)
+
+        marca = ctk.CTkFrame(lado, fg_color="transparent")
+        marca.grid(row=0, column=0, sticky="ew", padx=12, pady=(18, 14))
+        t.Letreiro(marca, "Otimizador", tamanho=23, cor=t.ACENTO).pack(fill="x")
+        t.rotulo(marca, f"PC  ·  versão {APP_VERSAO}", "corpo", 11, t.SUAVE).pack(anchor="w", padx=14)
+
+        for i, (chave, nome, _) in enumerate(PAGINAS, start=1):
+            self.nav[chave] = self._item_nav(lado, i, chave, nome)
+
+        lado.grid_rowconfigure(len(PAGINAS) + 1, weight=1)
+        rodape = ctk.CTkFrame(lado, fg_color="transparent")
+        rodape.grid(row=len(PAGINAS) + 2, column=0, sticky="ew", padx=20, pady=18)
+        # aviso de versão nova (aparece só se o GitHub tiver uma Release mais nova)
+        self.btn_versao = t.botao(rodape, "", None, "secundario", altura=30, border_color=t.ACENTO,
+                                  text_color=t.ACENTO)
+        self.lbl_disco = t.rotulo(rodape, "", "corpo", 11, t.SUAVE)
+        self.lbl_disco.pack(anchor="w")
+        self.barra_disco = t.barra(rodape, 0, largura=186, altura=4)
+        self.barra_disco.pack(anchor="w", pady=(4, 10))
+        cor = t.OK if self.admin else t.PERIGO
+        linha = ctk.CTkFrame(rodape, fg_color="transparent")
+        linha.pack(anchor="w")
+        t.icone(linha, "escudo", 13, cor).pack(side="left")
+        perm = t.rotulo(linha, "  pode fazer mudanças" if self.admin else "  só pode olhar", "corpo", 11, cor)
+        perm.pack(side="left")
+        t.Dica(perm, "Aberto como Administrador: pode limpar, fazer ajustes e desfazer." if self.admin else
+               "Aberto sem permissão de Administrador: dá para ver tudo, mas não para mudar o Windows. Para mudar, feche e abra de novo e responda Sim no aviso do Windows.")
+
+    def _item_nav(self, pai, linha, chave, nome):
+        f = ctk.CTkFrame(pai, fg_color="transparent", corner_radius=0, height=40, cursor="hand2")
+        f.grid(row=linha, column=0, sticky="ew", padx=(0, 10))
+        f.grid_propagate(False)
+        marca = ctk.CTkFrame(f, fg_color="transparent", width=3, corner_radius=0)
+        marca.place(x=0, y=6, relheight=0.7)
+        ic = t.icone(f, chave, 15, t.FRACO)
+        ic.place(x=22, rely=0.5, anchor="w")
+        tx = t.rotulo(f, nome, "corpo", 13, t.SUAVE)
+        tx.place(x=52, rely=0.5, anchor="w")
+        item = {"quadro": f, "marca": marca, "icone": ic, "texto": tx}
+
+        def entrar(_):
+            if self.atual != chave:
+                f.configure(fg_color=t.NAV_HOVER)
+
+        def sair(_):
+            if self.atual != chave:
+                f.configure(fg_color="transparent")
+        for w in (f, ic, tx):
+            w.bind("<Button-1>", lambda e: self.ir(chave))
+            w.bind("<Enter>", entrar)
+            w.bind("<Leave>", sair)
+        return item
+
+    def _barra_status(self):
+        barra = ctk.CTkFrame(self, fg_color=t.LATERAL, corner_radius=0, height=38)
+        barra.grid(row=1, column=1, sticky="ew")
+        barra.grid_propagate(False)
+        barra.grid_columnconfigure(0, weight=1)
+        self.lbl_status = t.rotulo(barra, "", "corpo", 11, t.SUAVE)
+        self.lbl_status.grid(row=0, column=0, sticky="w", padx=18, pady=9)
+        self.progresso = t.barra(barra, 0, largura=220, altura=4)
+        self.btn_cancelar = t.botao(barra, "cancelar", self.cancelar, "fantasma", largura=80, altura=26)
+
+    # ================================================================ navegação
+    def ir(self, chave):
+        if chave not in self.paginas:
+            classe = dict((c, cls) for c, _, cls in PAGINAS)[chave]
+            pagina = classe(self, self.conteudo)
+            pagina.grid(row=0, column=0, sticky="nsew")
+            self.paginas[chave] = pagina
+        if self.atual and self.atual in self.paginas:
+            self.paginas[self.atual].ao_esconder()
+            n = self.nav[self.atual]
+            n["quadro"].configure(fg_color="transparent")
+            n["marca"].configure(fg_color="transparent")
+            n["icone"].configure(text_color=t.FRACO)
+            n["texto"].configure(text_color=t.SUAVE)
+        self.atual = chave
+        n = self.nav[chave]
+        n["quadro"].configure(fg_color=t.NAV_ATIVO)
+        n["marca"].configure(fg_color=t.ACENTO)
+        n["icone"].configure(text_color=t.ACENTO)
+        n["texto"].configure(text_color=t.TEXTO)
+        self.paginas[chave].tkraise()
+        self.paginas[chave].ao_mostrar()
+
+    def pagina(self, chave):
+        return self.paginas.get(chave)
+
+    def _amostrar(self):
+        """A cada 2 s: guarda memória e processador e avisa a página da tela (se ela quiser)."""
+        try:
+            self.amostra = info.resumo()
+            self.amostra["cpu"] = self._processador.ler()
+            self.historico.guardar(self.amostra["ram_pct"] if self.amostra["ram_total"] else None,
+                                   self.amostra["cpu"])
+            pagina = self.paginas.get(self.atual)
+            if pagina is not None and hasattr(pagina, "ao_amostrar"):
+                pagina.ao_amostrar(self.amostra)
+        except Exception as e:
+            self.log(f"[erro] medindo o uso: {e}")
+        self.after(2000, self._amostrar)
+
+    def _versao_nova(self, resultado):
+        if not resultado:
+            return
+        versao, link = resultado
+        self.log(f"Saiu a versão {versao} do Otimizador PC: {link}")
+        self.btn_versao.configure(text=f"versão {versao} disponível", command=lambda: os.startfile(link))
+        self.btn_versao.pack(fill="x", pady=(0, 12), before=self.lbl_disco)
+
+    def obter_hardware(self, depois, novo=False):
+        """Lê o hardware uma vez e entrega a quem pediu (várias páginas podem pedir ao mesmo tempo)."""
+        if self.hardware is not None and not novo:
+            depois(self.hardware)
+            return
+        if self._esperando_hardware is not None:
+            self._esperando_hardware.append(depois)
+            return
+        self._esperando_hardware = [depois]
+
+        def pronto(r):
+            self.hardware = r
+            esperando, self._esperando_hardware = self._esperando_hardware or [], None
+            for funcao in esperando:
+                funcao(r)
+        def ler():
+            try:
+                return hardware.ler(self.s)
+            except Exception as e:  # quem esperava recebe None em vez de ficar esperando para sempre
+                self.log(f"[erro] lendo o hardware: {e}")
+                return None
+        self.em_segundo_plano(ler, pronto)
+
+    def atualizar_lateral(self):
+        d = info.resumo()
+        if d["disco_total"]:
+            usado = 1 - d["disco_livre"] / d["disco_total"]
+            self.lbl_disco.configure(text=f"{info.disco_do_sistema()[:2]}  {formatar_tamanho(d['disco_livre'])} livres")
+            self.barra_disco.configure(progress_color=t.cor_do_uso(usado))
+            self.barra_disco.set(usado)
+
+    # ================================================================ fila e threads
+    def _bombear(self):
+        try:
+            while True:
+                linha = self.log.fila.get_nowait()
+                self.linhas_log.append(linha)
+                self.lbl_status.configure(text=linha[11:] if len(linha) > 11 else linha)
+                reg = self.paginas.get("registro")
+                if reg:
+                    reg.acrescentar(linha)
+        except queue.Empty:
+            pass
+        try:
+            while True:
+                funcao, args = self._fila_ui.get_nowait()
+                try:
+                    funcao(*args)
+                except Exception as e:  # um erro de tela não pode parar a fila
+                    self.log(f"[erro na tela] {type(e).__name__}: {e}")
+        except queue.Empty:
+            pass
+        self.after(60, self._bombear)
+
+    def no_principal(self, funcao, *args):
+        self._fila_ui.put((funcao, args))
+
+    def perguntar(self, texto, aviso=False) -> bool:
+        """Chamada de dentro da thread: mostra a pergunta na janela e espera."""
+        pronto, caixa = threading.Event(), {}
+
+        def mostrar():
+            caixa["r"] = messagebox.askyesno(APP_NOME, texto, icon="warning" if aviso else "question")
+            pronto.set()
+        self.no_principal(mostrar)
+        pronto.wait()
+        return caixa.get("r", False)
+
+    def em_segundo_plano(self, funcao, depois=None):
+        def alvo():
+            try:
+                r = funcao()
+            except Exception as e:
+                self.log(f"[erro] {type(e).__name__}: {e}")
+                return
+            if depois:
+                self.no_principal(depois, r)
+        threading.Thread(target=alvo, daemon=True).start()
+
+    def trabalhar(self, funcao, titulo="trabalhando", cancelavel=True, silencioso=False) -> bool:
+        if self.ocupado:
+            if not silencioso:
+                messagebox.showinfo(APP_NOME, "Espere a tarefa atual terminar (ou cancele).")
+            return False
+        self.ocupado = True
+        self.ctl = Controle(progresso=lambda texto, fr: self.no_principal(self._progresso, texto, fr))
+        self._travar(True)
+        self._mostrar_progresso(titulo, cancelavel)
+
+        def alvo():
+            try:
+                funcao(self.ctl)
+            except Cancelado:
+                self.log("Cancelado. O que já tinha sido feito ficou feito (e guardado no backup).")
+            except Exception as e:
+                self.log(f"[ERRO INESPERADO] {type(e).__name__}: {e}")
+            finally:
+                self.no_principal(self._terminou)
+        threading.Thread(target=alvo, daemon=True).start()
+        return True
+
+    def cancelar(self):
+        if self.ctl:
+            self.ctl.parar()
+            self.btn_cancelar.configure(state="disabled", text="cancelando...")
+
+    def _mostrar_progresso(self, titulo, cancelavel):
+        self.lbl_status.configure(text=titulo + "...")
+        self.progresso.configure(mode="indeterminate")
+        self.progresso.grid(row=0, column=1, padx=10)
+        self.progresso.start()
+        if cancelavel:
+            self.btn_cancelar.configure(state="normal", text="cancelar")
+            self.btn_cancelar.grid(row=0, column=2, padx=(0, 12))
+
+    def _progresso(self, texto, fracao):
+        if texto:
+            self.lbl_status.configure(text=texto if len(texto) < 110 else texto[:107] + "...")
+        if fracao is not None:
+            if self.progresso.cget("mode") != "determinate":
+                self.progresso.stop()
+                self.progresso.configure(mode="determinate")
+            self.progresso.set(max(0.0, min(1.0, fracao)))
+
+    def _terminou(self):
+        self.ocupado = False
+        self.ctl = None
+        self.progresso.stop()
+        self.progresso.grid_forget()
+        self.btn_cancelar.grid_forget()
+        self._travar(False)
+        self.atualizar_lateral()
+        if self.linhas_log:
+            self.lbl_status.configure(text=self.linhas_log[-1][11:])
+
+    def registrar_botao(self, b):
+        self.botoes_acao.append(b)
+        return b
+
+    def _travar(self, travado):
+        for b in self.botoes_acao:
+            try:
+                b.configure(state="disabled" if travado else "normal")
+            except Exception:
+                pass
+
+    def precisa_admin(self) -> bool:
+        if self.admin:
+            return True
+        messagebox.showwarning(APP_NOME, "Para fazer isto, o programa precisa de permissão de Administrador. Feche, abra de novo "
+                                         "e responda Sim no aviso do Windows.")
+        return False
+
+    def _fechar(self):
+        if self.ocupado and not messagebox.askyesno(
+                APP_NOME, "Uma tarefa está em andamento. O que já foi feito está salvo no backup, "
+                          "mas a tarefa vai parar no meio. Fechar mesmo assim?", icon="warning"):
+            return
+        self.destroy()
+
+
+def abrir(admin: bool):
+    ctk.set_appearance_mode("dark")
+    Janela(admin).mainloop()
