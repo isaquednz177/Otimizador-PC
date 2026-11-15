@@ -42,6 +42,11 @@ def main():
     admin = eh_admin()
     if not admin and "--sem-admin" not in sys.argv and pedir_admin():
         return  # quem continua é a cópia com Administrador
+    try:
+        # um "nome de app" próprio: a barra de tarefas mostra o ícone do Otimizador, e não o do Python
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Billy.OtimizadorPC")
+    except Exception:
+        pass
     from otimizador_pc.interface import abrir
     abrir(admin)
 

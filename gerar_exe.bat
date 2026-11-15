@@ -38,8 +38,9 @@ echo [3/4] Apagando compilacoes antigas...
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 
+REM icone desenhado por scripts\gerar_icone.py
 set ICONE=
-if exist icone.ico set ICONE=--icon=icone.ico
+if exist otimizador_pc\arte\icone.ico set ICONE=--icon=otimizador_pc\arte\icone.ico
 
 echo.
 echo [4/4] Compilando (de 1 a 5 minutos)...

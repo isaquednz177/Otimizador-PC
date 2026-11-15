@@ -35,6 +35,10 @@ class Janela(ctk.CTk):
 
     def __init__(self, admin: bool):
         super().__init__(fg_color=t.FUNDO)
+        icone = os.path.join(t.ARTE, "icone.ico")
+        if os.path.exists(icone):
+            # chamado logo no início: assim o customtkinter não troca pelo ícone dele
+            self.iconbitmap(icone)
         t.preparar_fontes()
         self.admin = admin
         self.title(f"{APP_NOME} {APP_VERSAO}")

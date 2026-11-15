@@ -11,9 +11,17 @@ class TestArte(unittest.TestCase):
         with open(os.path.join(ARTE, "moldura.png"), "rb") as f:
             self.assertEqual(f.read(8), b"\x89PNG\r\n\x1a\n")
 
-    def test_gerar_exe_leva_a_arte(self):
+    def test_gerar_exe_leva_a_arte_e_o_icone(self):
         with open(os.path.join(os.path.dirname(__file__), "..", "gerar_exe.bat"), encoding="utf-8") as f:
-            self.assertIn("otimizador_pc\\arte", f.read())
+            bat = f.read()
+        self.assertIn("otimizador_pc\\arte", bat)
+        self.assertIn("--icon=otimizador_pc\\arte\\icone.ico", bat)
+
+    def test_icone_com_todos_os_tamanhos(self):
+        with open(os.path.join(ARTE, "icone.ico"), "rb") as f:
+            cabecalho = f.read(6)
+        self.assertEqual(cabecalho[:4], b"\x00\x00\x01\x00", "não é um .ico")
+        self.assertGreaterEqual(int.from_bytes(cabecalho[4:6], "little"), 5, "faltam tamanhos (16 a 256 px)")
 
     def test_cores_do_tema(self):
         from otimizador_pc import tema as t
