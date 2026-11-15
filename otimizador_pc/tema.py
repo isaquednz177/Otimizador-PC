@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-A cara do programa: o gótico do site MFG (estilo "Dark Vampira").
+A cara do programa: vermelho-sangue, preto gótico e marrom escuro.
 
-- Paleta: preto-vinho, pergaminho, ouro velho e vinho (as mesmas cores do css/gotico.css).
-- Fontes do site, embutidas em otimizador_pc/arte (licença OFL) e carregadas só para o
-  app, sem instalar nada no Windows: UnifrakturCook nos títulos das páginas, Grenze
-  Gotisch nos rótulos e Grenze no texto e nos números.
-- Cartões com a moldura de volutas do site nos cantos.
+- Fundo preto, painéis em marrom escuro, bordas e volutas em marrom, e o
+  vermelho-sangue nos destaques, nas barras e no botão principal.
+- Fontes normais do Windows (Segoe UI).
+- Cartões com a moldura de volutas nos cantos.
 - Fundo áspero de TV de tubo (linhas de varredura e granulado) atrás dos títulos,
   no lugar de degradê liso.
 - Cantos quase retos; nenhum botão em pílula.
 """
 
-import ctypes
-import glob
 import os
 import tkinter as tk
 import tkinter.font as tkfont
@@ -22,29 +19,30 @@ import customtkinter as ctk
 
 ARTE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "arte")
 
-# ---------------------------------------------------------------- cores (Dark Vampira)
-FUNDO = "#0B0709"
-LATERAL = "#0F090C"
-PAINEL = "#1A1115"
-PAINEL2 = "#24171C"
-LINHA = "#3A2A22"
-ORNATO = "#7A5C38"        # borda dos cartões e moldura (ouro velho escurecido)
-TEXTO = "#ECE2CE"         # pergaminho
-SUAVE = "#B7A78F"
-FRACO = "#7D6E5E"
-ACENTO = "#D9B36C"        # ouro
-ACENTO_CLARO = "#E2B866"
-ACENTO_FUNDO = "#2A1C12"
-NO_ACENTO = "#1A0F08"
-VINHO = "#6E1426"
-VINHO_CLARO = "#9A2338"
-OK = "#A9BC82"            # sálvia: "já aplicado", saudável
-PERIGO = "#E0727A"
-PERIGO_FUNDO = "#3A0E16"
-LARANJA = "#E0913F"
-NAV_ATIVO = "#26111B"     # item do menu escolhido: vinho bem escuro
-NAV_HOVER = "#180D12"
-BARRA = "#7A5C38"         # barras dos gráficos
+# ---------------------------------------------------------------- cores
+FUNDO = "#090606"         # preto gótico
+LATERAL = "#0C0807"
+PAINEL = "#1B120D"        # marrom escuro
+PAINEL2 = "#26190F"
+LINHA = "#382519"
+ORNATO = "#5E3D27"        # borda dos cartões e volutas (marrom)
+TEXTO = "#EEE6DC"
+SUAVE = "#B9A898"
+FRACO = "#83705F"
+ACENTO = "#E5474F"        # vermelho-sangue para texto e destaques (contraste 5:1 no preto, 4,7:1 no marrom)
+ACENTO_CLARO = "#EE5A61"
+ACENTO_FUNDO = "#2C0D0D"
+NO_ACENTO = "#FFFFFF"
+VINHO = "#8A0A12"         # vermelho-sangue escuro (botão principal)
+VINHO_CLARO = "#A8101A"
+OK = "#A3B57E"            # "já aplicado", saudável
+PERIGO = "#E5474F"
+PERIGO_FUNDO = "#300A0C"
+LARANJA = "#C9732C"
+NORMAL = "#8C6447"        # barras em uso normal (marrom claro)
+NAV_ATIVO = "#2A1210"     # item do menu escolhido
+NAV_HOVER = "#170E0B"
+BARRA = "#5E3D27"         # barras dos gráficos
 RAIO = 2
 
 ICONES = {
@@ -58,18 +56,8 @@ _familias = {}
 _imagens = {}   # guarda as imagens (o Tk apaga imagem sem referência)
 
 
-def _carregar_fontes_do_app():
-    """Fontes de otimizador_pc/arte valem só para este programa (FR_PRIVATE)."""
-    for arquivo in glob.glob(os.path.join(ARTE, "*.ttf")):
-        try:
-            ctypes.windll.gdi32.AddFontResourceExW(arquivo, 0x10, 0)
-        except Exception:
-            pass
-
-
 def preparar_fontes():
-    """Chamar depois de criar a janela."""
-    _carregar_fontes_do_app()
+    """Chamar depois de criar a janela. Fontes normais do Windows."""
     existentes = set(tkfont.families())
 
     def primeira(*opcoes):
@@ -78,18 +66,17 @@ def preparar_fontes():
                 return f
         return opcoes[-1]
     _familias.update(
-        gotico=primeira("UnifrakturCook", "Old English Text MT", "Segoe UI Semibold"),
-        titulo=primeira("Grenze Gotisch", "Segoe UI Semibold"),
-        numero=primeira("Grenze SemiBold", "Grenze", "Segoe UI Semibold"),
-        corpo=primeira("Grenze", "Segoe UI"),
-        corpo_forte=primeira("Grenze SemiBold", "Segoe UI Semibold"),
+        gotico=primeira("Segoe UI Variable Display Semib", "Segoe UI Semibold", "Segoe UI"),  # títulos das páginas
+        titulo=primeira("Segoe UI Semibold", "Segoe UI"),
+        numero=primeira("Segoe UI Semibold", "Segoe UI"),
+        corpo=primeira("Segoe UI Variable Text", "Segoe UI"),
+        corpo_forte=primeira("Segoe UI Variable Text Semibold", "Segoe UI Semibold", "Segoe UI"),
         mono=primeira("Cascadia Mono", "Consolas"),
         icone=primeira("Segoe Fluent Icons", "Segoe MDL2 Assets", "Segoe UI Symbol"),
     )
 
 
-# A Grenze tem letras baixinhas e a Grenze Gotisch é estreita: um pouco maiores para ler bem.
-_AJUSTE = {"corpo": 1, "corpo_forte": 1, "titulo": 2, "numero": 1}
+_AJUSTE = {}
 
 
 def familia(tipo):
@@ -145,7 +132,7 @@ def textura_crt(largura: int, altura: int, base: str = FUNDO):
     # brilho fraco de tela ligada no meio
     brilho = Image.new("L", (largura, altura), 0)
     ImageDraw.Draw(brilho).ellipse((-largura * 0.2, -altura * 1.2, largura * 0.9, altura * 1.6), fill=26)
-    claro = Image.new("RGB", (largura, altura), (120, 40, 52))
+    claro = Image.new("RGB", (largura, altura), (110, 12, 16))
     img = Image.composite(claro, img, brilho.point(lambda v: v // 2))
     return img
 
@@ -165,11 +152,11 @@ def botao(pai, texto, comando, tipo="secundario", largura=None, altura=32, **kw)
     estilos = {
         # vinho com friso dourado, como o botão principal do site
         "principal": dict(fg_color=VINHO, hover_color=VINHO_CLARO, text_color=TEXTO,
-                          border_width=1, border_color=ACENTO, font=fonte("titulo", 15)),
-        "secundario": dict(fg_color=PAINEL2, hover_color="#30202A", text_color=TEXTO,
+                          border_width=1, border_color=ACENTO, font=fonte("titulo", 13)),
+        "secundario": dict(fg_color=PAINEL2, hover_color="#302014", text_color=TEXTO,
                            border_width=1, border_color=ORNATO, font=fonte("corpo", 13)),
-        "perigo": dict(fg_color=PERIGO_FUNDO, hover_color="#4E1420", text_color=PERIGO,
-                       border_width=1, border_color="#6A2030", font=fonte("corpo", 13)),
+        "perigo": dict(fg_color=PERIGO_FUNDO, hover_color="#4A1012", text_color=PERIGO,
+                       border_width=1, border_color="#6A1418", font=fonte("corpo", 13)),
         "fantasma": dict(fg_color="transparent", hover_color=PAINEL2, text_color=SUAVE,
                          border_width=0, font=fonte("corpo", 12)),
     }
@@ -199,7 +186,7 @@ def cartao(pai, ornado=True, **kw):
 
 def barra(pai, valor=0.0, cor=ACENTO, altura=6, largura=200):
     b = ctk.CTkProgressBar(pai, height=altura, width=largura, corner_radius=0, border_width=0,
-                           fg_color="#2A1A1F", progress_color=cor)
+                           fg_color="#21160F", progress_color=cor)
     b.set(max(0.0, min(1.0, valor)))
     return b
 
@@ -207,7 +194,7 @@ def barra(pai, valor=0.0, cor=ACENTO, altura=6, largura=200):
 def caixa(pai, texto, variavel, **kw):
     return ctk.CTkCheckBox(pai, text=texto, variable=variavel, corner_radius=0, border_width=1,
                            checkbox_width=17, checkbox_height=17, fg_color=VINHO, hover_color=VINHO_CLARO,
-                           border_color=ORNATO, checkmark_color=ACENTO, text_color=TEXTO,
+                           border_color=ORNATO, checkmark_color=TEXTO, text_color=TEXTO,
                            font=fonte("corpo", 13), **kw)
 
 
@@ -228,16 +215,16 @@ class Alternador(ctk.CTkButton):
         self._textos = textos
         self._ao_clicar = comando
         super().__init__(pai, text="", width=largura, height=28, corner_radius=RAIO, border_width=1,
-                         font=fonte("titulo", 13), command=self._clique)
+                         font=fonte("titulo", 12), command=self._clique)
         self.definir(ligado)
 
     def definir(self, ligado: bool):
         self.ligado = bool(ligado)
         if self.ligado:
-            self.configure(text=self._textos[0], fg_color=ACENTO_FUNDO, hover_color="#3A2817",
+            self.configure(text=self._textos[0], fg_color=ACENTO_FUNDO, hover_color="#3A1212",
                            border_color=ACENTO, text_color=ACENTO)
         else:
-            self.configure(text=self._textos[1], fg_color=PAINEL2, hover_color="#30202A",
+            self.configure(text=self._textos[1], fg_color=PAINEL2, hover_color="#302014",
                            border_color=LINHA, text_color=FRACO)
 
     def _clique(self):
@@ -272,7 +259,7 @@ class Letreiro(tk.Canvas):
         y = int(self.tamanho * 1.1 * e)
         fam = familia("gotico")
         # sombra vinho e depois o texto: o "brilho" do letreiro
-        self.create_text(x + 2, y + 2, text=self.titulo, anchor="w", fill="#3A0A14", font=(fam, -tam))
+        self.create_text(x + 2, y + 2, text=self.titulo, anchor="w", fill="#000000", font=(fam, -tam))
         self.create_text(x, y, text=self.titulo, anchor="w", fill=self.cor, font=(fam, -tam))
         largura_titulo = tkfont.Font(family=fam, size=-tam).measure(self.titulo)
         yl = int(y + tam * 0.72)
@@ -301,7 +288,7 @@ def ao_clicar(widget, funcao):
 
 def cor_do_uso(fracao: float) -> str:
     if fracao >= 0.9:
-        return VINHO_CLARO
+        return ACENTO
     if fracao >= 0.75:
         return LARANJA
-    return ACENTO
+    return NORMAL

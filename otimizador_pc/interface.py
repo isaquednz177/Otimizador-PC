@@ -87,8 +87,8 @@ class Janela(ctk.CTk):
 
         marca = ctk.CTkFrame(lado, fg_color="transparent")
         marca.grid(row=0, column=0, sticky="ew", padx=12, pady=(18, 14))
-        t.Letreiro(marca, "Otimizador", tamanho=27, cor=t.ACENTO).pack(fill="x")
-        t.rotulo(marca, f"PC  ·  versão {APP_VERSAO}", "titulo", 13, t.SUAVE).pack(anchor="w", padx=14)
+        t.Letreiro(marca, "Otimizador", tamanho=23, cor=t.ACENTO).pack(fill="x")
+        t.rotulo(marca, f"PC  ·  versão {APP_VERSAO}", "corpo", 11, t.SUAVE).pack(anchor="w", padx=14)
 
         for i, (chave, nome, _) in enumerate(PAGINAS, start=1):
             self.nav[chave] = self._item_nav(lado, i, chave, nome)
@@ -117,7 +117,7 @@ class Janela(ctk.CTk):
         marca.place(x=0, y=6, relheight=0.7)
         ic = t.icone(f, chave, 15, t.FRACO)
         ic.place(x=22, rely=0.5, anchor="w")
-        tx = t.rotulo(f, nome, "titulo", 15, t.SUAVE)
+        tx = t.rotulo(f, nome, "corpo", 13, t.SUAVE)
         tx.place(x=52, rely=0.5, anchor="w")
         item = {"quadro": f, "marca": marca, "icone": ic, "texto": tx}
 

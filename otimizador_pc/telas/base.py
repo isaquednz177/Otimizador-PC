@@ -15,7 +15,7 @@ class Pagina(ctk.CTkFrame):
         self.j = janela
         self.visivel = False
         self.grid_columnconfigure(0, weight=1)
-        self.letreiro = t.Letreiro(self, self.titulo, self.subtitulo, tamanho=30)
+        self.letreiro = t.Letreiro(self, self.titulo, self.subtitulo, tamanho=26)
         self.letreiro.grid(row=0, column=0, sticky="ew", padx=28, pady=(20, 14))
         # botões do topo, por cima do letreiro, à direita
         self.acoes = ctk.CTkFrame(self, fg_color=t.FUNDO, corner_radius=0, width=1, height=1)
