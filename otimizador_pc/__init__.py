@@ -16,6 +16,7 @@ Mapa:
   atualizacao.py    avisa quando sai versão nova no GitHub
   config.py         preferências da pessoa
   espaco.py         o que ocupa o disco (só mede)
+  desinstalar.py    desinstala programas e caça as sobras (pastas e registro)
   boot.py           tempo para ligar, pelo registro do Windows
   controle.py       cancelar e progresso das tarefas longas
   info.py           RAM e disco
@@ -26,4 +27,4 @@ Mapa:
 """
 
 APP_NOME = "Otimizador PC"
-APP_VERSAO = "2.2"
+APP_VERSAO = "2.3"

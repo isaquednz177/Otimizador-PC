@@ -10,6 +10,12 @@ Limpeza e ajustes do Windows 10 e 11, **todos reversíveis**. Feito para uso pes
 
 **Espaço em disco**: mede o C: (ou outra pasta), deixa entrar pasta por pasta, lista os maiores arquivos com "mostrar na pasta" e explica os nomes estranhos (pagefile.sys, WinSxS, hiberfil.sys...). **Só mostra, nunca apaga.** Junções não contam duas vezes, e arquivos do OneDrive que estão só na nuvem contam zero.
 
+**Desinstalar programas** (como o Revo Uninstaller): lista tudo o que está instalado, com busca e ordem por nome, tamanho ou data. Primeiro roda o desinstalador do **próprio** programa e espera ele terminar, inclusive os processos que ele abrir. Depois procura as sobras:
+- pastas com o nome do programa em Arquivos de Programas, AppData, ProgramData e Menu Iniciar;
+- chaves com o nome dele em `Software` no registro.
+
+Ele mostra tudo antes de apagar: já vem marcado só o que tem o nome exato do programa, e você escolhe. **As pastas vão para a Lixeira**, e cada chave do registro é exportada para um `.reg` em `%APPDATA%\OtimizadorPC\desinstalados` antes de sair; dois cliques nesse arquivo põem a chave de volta. O que é de outro programa instalado, da Microsoft, nomes genéricos (Common, Update, Python...) e as pastas do sistema nunca entram. Antes de desinstalar, ele cria um ponto de restauração, se a Proteção do Sistema estiver ligada. Programa cujo desinstalador já sumiu ganha o botão "remover restos".
+
 **Modo jogo**: antes de jogar, fecha os programas que você marcar e liga o Alto desempenho. Ao sair, volta o plano de energia de antes e reabre o que foi fechado (sem Administrador, pelo Explorador). O estado fica no backup antes de cada mudança: se o PC desligar no meio, dá para sair do modo jogo depois.
 
 **Hardware**: memória (pentes, encaixes livres, tipo e quanto a placa aceita), discos (saúde; desgaste e temperatura com Administrador), processador, idade do driver de vídeo com o link do site oficial, saúde da bateria, última atualização do Windows e reinício pendente. Só mostra.
@@ -96,6 +102,7 @@ Os testes usam um Windows falso (`tests/falso.py`), então não mudam nada no PC
 | `otimizador_pc/inicializacao.py` | programas, serviços e tarefas que abrem com o Windows |
 | `otimizador_pc/processos.py` | memória e processador por programa (uma chamada só ao Windows) |
 | `otimizador_pc/espaco.py` | o que ocupa o disco (só mede) |
+| `otimizador_pc/desinstalar.py` | desinstala programas e caça as sobras (pastas e registro) |
 | `otimizador_pc/boot.py` | tempo para ligar, pelo registro do Windows |
 | `otimizador_pc/hardware.py` | memória, discos, vídeo, bateria e atualizações (só lê) |
 | `otimizador_pc/modo_jogo.py` | entra e sai do modo jogo, guardando o estado antes |

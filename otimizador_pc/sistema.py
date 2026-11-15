@@ -395,3 +395,104 @@ class Sistema:
             return [e.name for e in os.scandir(pasta) if e.is_file(follow_symlinks=False)]
         except OSError:
             return []
+
+    # ------------------------------------------------------------ desinstalar
+    def reg_chave_existe(self, hive: str, caminho: str) -> bool:
+        try:
+            with winreg.OpenKey(self._hives[hive], caminho, 0, winreg.KEY_READ | self._v64):
+                return True
+        except OSError:
+            return False
+
+    def reg_exportar(self, hive: str, caminho: str, arquivo: str) -> tuple:
+        """Cópia da chave (e de tudo dentro dela) num .reg, que volta com dois cliques."""
+        codigo, saida = self.rodar(["reg", "export", f"{hive}\{caminho}", arquivo, "/y", "/reg:64"], timeout=60)
+        if codigo == 0 and os.path.isfile(arquivo) and os.path.getsize(arquivo) > 0:
+            return True, "ok"
+        return False, saida.strip()[:200] or f"código {codigo}"
+
+    def reg_apagar_chave(self, hive: str, caminho: str) -> tuple:
+        partes = [p for p in caminho.split("\\") if p]
+        if len(partes) < 2:   # nunca uma raiz como SOFTWARE
+            return False, "chave curta demais para apagar"
+        codigo, saida = self.rodar(["reg", "delete", f"{hive}\{caminho}", "/f", "/reg:64"], timeout=60)
+        return (True, "ok") if codigo == 0 else (False, saida.strip()[:200])
+
+    def para_lixeira(self, caminho: str) -> tuple:
+        """Manda uma pasta para a Lixeira. Se ela não couber na Lixeira, o Windows pergunta antes."""
+        from ctypes import wintypes
+
+        class SHFILEOPSTRUCTW(ctypes.Structure):
+            if ctypes.sizeof(ctypes.c_void_p) == 4:
+                _pack_ = 1
+            _fields_ = [("hwnd", wintypes.HWND), ("wFunc", wintypes.UINT), ("pFrom", wintypes.LPCWSTR),
+                        ("pTo", wintypes.LPCWSTR), ("fFlags", ctypes.c_ushort),
+                        ("fAnyOperationsAborted", wintypes.BOOL), ("hNameMappings", ctypes.c_void_p),
+                        ("lpszProgressTitle", wintypes.LPCWSTR)]
+        op = SHFILEOPSTRUCTW()
+        op.wFunc = 3                                   # FO_DELETE
+        op.pFrom = os.path.abspath(caminho) + "\0"     # a lista termina com dois \0
+        # desfazer (Lixeira) | sem "tem certeza?" | sem barra | sem janela de erro | avisa se for apagar de vez
+        op.fFlags = 0x40 | 0x10 | 0x04 | 0x400 | 0x4000
+        res = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+        if res == 0 and not op.fAnyOperationsAborted and not os.path.exists(caminho):
+            return True, "ok"
+        if op.fAnyOperationsAborted:
+            return False, "cancelado"
+        return False, f"o Windows respondeu {res:#x}" if res else "a pasta continua lá (algum arquivo em uso?)"
+
+    def rodar_desinstalador(self, comando: str, ctl=None) -> tuple:
+        """
+        Abre o desinstalador e espera ele E os processos que ele abrir (muitos se copiam
+        para a pasta temporária e fecham o primeiro na hora). Devolve (código, erro).
+        Cancelar só para de esperar: o desinstalador continua.
+        """
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.CreateJobObjectW.restype = ctypes.c_void_p
+        k32.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        k32.QueryInformationJobObject.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p,
+                                                  ctypes.c_ulong, ctypes.c_void_p]
+        k32.CloseHandle.argtypes = [ctypes.c_void_p]
+        ntdll = ctypes.WinDLL("ntdll")
+        ntdll.NtResumeProcess.argtypes = [ctypes.c_void_p]
+
+        class CONTAS(ctypes.Structure):   # JOBOBJECT_BASIC_ACCOUNTING_INFORMATION
+            _fields_ = [("t1", ctypes.c_longlong), ("t2", ctypes.c_longlong), ("t3", ctypes.c_longlong),
+                        ("t4", ctypes.c_longlong), ("falhas", ctypes.c_ulong), ("total", ctypes.c_ulong),
+                        ("ativos", ctypes.c_ulong), ("encerrados", ctypes.c_ulong)]
+
+        job = k32.CreateJobObjectW(None, None)
+        try:
+            # começa parado, entra no "grupo" e só então anda: nenhum filho escapa da contagem
+            proc = subprocess.Popen(comando, creationflags=0x4 if job else 0)   # CREATE_SUSPENDED
+        except OSError as e:
+            if job:
+                k32.CloseHandle(job)
+            return None, str(e)
+        if job:
+            if not k32.AssignProcessToJobObject(job, int(proc._handle)):
+                k32.CloseHandle(job)
+                job = None
+            ntdll.NtResumeProcess(int(proc._handle))
+        try:
+            if job:
+                contas = CONTAS()
+                while True:
+                    if not k32.QueryInformationJobObject(job, 1, ctypes.byref(contas), ctypes.sizeof(contas), None):
+                        proc.wait()
+                        break
+                    if contas.ativos == 0:
+                        break
+                    if ctl:
+                        ctl.checar()
+                    time.sleep(0.5)
+            else:
+                while proc.poll() is None:
+                    if ctl:
+                        ctl.checar()
+                    time.sleep(0.5)
+                time.sleep(3)
+        finally:
+            if job:
+                k32.CloseHandle(job)
+        return proc.poll(), ""

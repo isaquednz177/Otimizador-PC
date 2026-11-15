@@ -54,6 +54,8 @@ ICONES = {
 
 ICONES["ajuda"] = ""   # ponto de interrogação num círculo
 
+ICONES["desinstalar"] = ""   # lixeira
+
 _familias = {}
 _imagens = {}   # guarda as imagens (o Tk apaga imagem sem referência)
 
