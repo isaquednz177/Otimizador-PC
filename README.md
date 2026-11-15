@@ -10,6 +10,12 @@ Limpeza e ajustes do Windows 10 e 11, **todos reversíveis**. Feito para uso pes
 
 **Espaço em disco**: mede o C: (ou outra pasta), deixa entrar pasta por pasta, lista os maiores arquivos com "mostrar na pasta" e explica os nomes estranhos (pagefile.sys, WinSxS, hiberfil.sys...). **Só mostra, nunca apaga.** Junções não contam duas vezes, e arquivos do OneDrive que estão só na nuvem contam zero.
 
+**Modo jogo**: antes de jogar, fecha os programas que você marcar e liga o Alto desempenho. Ao sair, volta o plano de energia de antes e reabre o que foi fechado (sem Administrador, pelo Explorador). O estado fica no backup antes de cada mudança: se o PC desligar no meio, dá para sair do modo jogo depois.
+
+**Hardware**: memória (pentes, encaixes livres, tipo e quanto a placa aceita), discos (saúde; desgaste e temperatura com Administrador), processador, idade do driver de vídeo com o link do site oficial, saúde da bateria, última atualização do Windows e reinício pendente. Só mostra.
+
+**Aviso de versão nova**: ao abrir, ele confere a última Release do GitHub e mostra um botão no menu se houver versão mais nova.
+
 **Tempo para ligar**: o histórico do próprio Windows (evento 100 do Diagnostics-Performance), em gráfico, com a média antes e depois dos ajustes. Precisa de Administrador.
 
 **Limpeza**: "Analisar" mostra quanto cada item libera, sem apagar nada.
@@ -19,6 +25,7 @@ Limpeza e ajustes do Windows 10 e 11, **todos reversíveis**. Feito para uso pes
 - Cache da Otimização de Entrega (apagado pelo próprio Windows)
 - Cache do Chrome, Edge, Brave, Opera, Opera GX e Firefox: só o cache (senhas, histórico e abas ficam), e só com o navegador fechado
 - Cache de shaders (DirectX, NVIDIA, AMD e Intel) e de miniaturas
+- Downloads que não terminaram (`.crdownload`, `.part`, `.tmp` parados há mais de 7 dias, só na pasta Downloads e sem entrar nas subpastas)
 - Limpeza de componentes do Windows (WinSxS, pelo DISM), Lixeira e DNS
 
 **Otimização**: cada ajuste mostra se já está aplicado no seu PC.
@@ -57,6 +64,14 @@ Precisa do [Python](https://www.python.org/downloads/) 3.10 ou mais novo, com "A
 1. Clique duas vezes no **`executar.bat`**. Na primeira vez ele instala o `customtkinter`.
 2. Aceite o aviso do Windows (Administrador). Se recusar, o programa abre só para olhar.
 
+### Publicar uma versão nova
+
+1. Mude `APP_VERSAO` em `otimizador_pc/__init__.py`.
+2. Gere o `.exe` (abaixo).
+3. No GitHub: **Releases › Draft a new release**, tag `v` + a versão (ex.: `v2.2`), e anexe o `dist\OtimizadorPC.exe`.
+
+Quem estiver com uma versão mais velha vê o aviso no menu do programa.
+
 ### Gerar o .exe
 
 Clique duas vezes no **`gerar_exe.bat`**. Ele roda os testes e só gera o `dist\OtimizadorPC.exe` se todos passarem.
@@ -82,6 +97,10 @@ Os testes usam um Windows falso (`tests/falso.py`), então não mudam nada no PC
 | `otimizador_pc/processos.py` | memória e processador por programa (uma chamada só ao Windows) |
 | `otimizador_pc/espaco.py` | o que ocupa o disco (só mede) |
 | `otimizador_pc/boot.py` | tempo para ligar, pelo registro do Windows |
+| `otimizador_pc/hardware.py` | memória, discos, vídeo, bateria e atualizações (só lê) |
+| `otimizador_pc/modo_jogo.py` | entra e sai do modo jogo, guardando o estado antes |
+| `otimizador_pc/atualizacao.py` | aviso de versão nova (Releases do GitHub) |
+| `otimizador_pc/config.py` | preferências (`%APPDATA%\OtimizadorPC\config.json`) |
 | `otimizador_pc/controle.py` | cancelar e progresso |
 | `otimizador_pc/tema.py` | cores, fontes e peças da tela |
 | `otimizador_pc/interface.py` | a janela: menu lateral, barra de status, threads |

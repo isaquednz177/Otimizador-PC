@@ -32,7 +32,7 @@ RAIO = 3
 ICONES = {
     "inicio": "", "desempenho": "", "limpeza": "", "espaco": "",
     "ajustes": "", "inicializacao": "", "medicoes": "", "reverter": "",
-    "registro": "", "pasta": "", "subir": "", "atualizar": "",
+    "registro": "", "modo_jogo": "", "hardware": "", "pasta": "", "subir": "", "atualizar": "",
     "fechar": "", "escudo": "", "aviso": "",
 }
 

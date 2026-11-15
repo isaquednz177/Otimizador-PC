@@ -18,9 +18,12 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 
-from otimizador_pc import APP_NOME, APP_VERSAO, info
+import os
+
+from otimizador_pc import APP_NOME, APP_VERSAO, atualizacao, hardware, info
 from otimizador_pc import tema as t
 from otimizador_pc.backup import Backup
+from otimizador_pc.config import Config
 from otimizador_pc.controle import Cancelado, Controle
 from otimizador_pc.registro import Registro
 from otimizador_pc.sistema import Sistema
@@ -41,6 +44,9 @@ class Janela(ctk.CTk):
         self.s = Sistema()
         self.log = Registro(PASTA_LOGS)
         self.backup = Backup(ARQUIVO_BACKUP)
+        self.config = Config()
+        self.hardware = None          # leitura do hardware, feita uma vez (leva ~20 s)
+        self._esperando_hardware = None
         self._fila_ui = queue.Queue()
         self.ocupado = False
         self.ctl = None
@@ -66,8 +72,11 @@ class Janela(ctk.CTk):
             self.log("AVISO: " + self.backup.aviso)
         if not admin:
             self.log("Sem Administrador: dá para ver e analisar, mas não para mudar o sistema.")
+        if self.backup.dados.get("modo_jogo", {}).get("ativo"):
+            self.log("O modo jogo ficou ligado da última vez. Para voltar tudo, use \"sair do modo jogo\".")
         self.atualizar_lateral()
         self.ir("inicio")
+        self.em_segundo_plano(lambda: atualizacao.verificar(APP_VERSAO), self._versao_nova)
 
     # ================================================================ estrutura
     def _lateral(self):
@@ -90,6 +99,9 @@ class Janela(ctk.CTk):
         lado.grid_rowconfigure(len(PAGINAS) + 1, weight=1)
         rodape = ctk.CTkFrame(lado, fg_color="transparent")
         rodape.grid(row=len(PAGINAS) + 2, column=0, sticky="ew", padx=20, pady=18)
+        # aviso de versão nova (aparece só se o GitHub tiver uma Release mais nova)
+        self.btn_versao = t.botao(rodape, "", None, "secundario", altura=30, border_color=t.ACENTO,
+                                  text_color=t.ACENTO)
         self.lbl_disco = t.rotulo(rodape, "", "corpo", 11, t.SUAVE)
         self.lbl_disco.pack(anchor="w")
         self.barra_disco = t.barra(rodape, 0, largura=186, altura=4)
@@ -160,6 +172,37 @@ class Janela(ctk.CTk):
 
     def pagina(self, chave):
         return self.paginas.get(chave)
+
+    def _versao_nova(self, resultado):
+        if not resultado:
+            return
+        versao, link = resultado
+        self.log(f"Saiu a versão {versao} do Otimizador PC: {link}")
+        self.btn_versao.configure(text=f"versão {versao} disponível", command=lambda: os.startfile(link))
+        self.btn_versao.pack(fill="x", pady=(0, 12), before=self.lbl_disco)
+
+    def obter_hardware(self, depois, novo=False):
+        """Lê o hardware uma vez e entrega a quem pediu (várias páginas podem pedir ao mesmo tempo)."""
+        if self.hardware is not None and not novo:
+            depois(self.hardware)
+            return
+        if self._esperando_hardware is not None:
+            self._esperando_hardware.append(depois)
+            return
+        self._esperando_hardware = [depois]
+
+        def pronto(r):
+            self.hardware = r
+            esperando, self._esperando_hardware = self._esperando_hardware or [], None
+            for funcao in esperando:
+                funcao(r)
+        def ler():
+            try:
+                return hardware.ler(self.s)
+            except Exception as e:  # quem esperava recebe None em vez de ficar esperando para sempre
+                self.log(f"[erro] lendo o hardware: {e}")
+                return None
+        self.em_segundo_plano(ler, pronto)
 
     def atualizar_lateral(self):
         d = info.resumo()

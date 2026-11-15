@@ -36,6 +36,9 @@ class Alvo:
     idade_horas: float = 0     # só o que não foi mexido nas últimas N horas
     recursivo: bool = True     # entra nas subpastas
     apagar_pastas: bool = True # tira as subpastas que ficarem vazias
+    # Só para pastas pessoais protegidas (Downloads): permite apagar ali, mas SÓ arquivos
+    # com as extensões da lista, sem entrar em subpastas. Ver _excecao_protegida.
+    pasta_pessoal: bool = False
 
 
 @dataclass
@@ -91,13 +94,16 @@ def _recente(st, limite: float) -> bool:
     return max(st.st_mtime, criado) >= limite
 
 
-def _so_nomes_exatos(alvo: Alvo) -> bool:
+def _excecao_protegida(alvo: Alvo) -> bool:
     """
-    Um alvo que só apaga arquivos de nome exato, sem entrar em subpastas
-    (ex.: C:\\Windows\\MEMORY.DMP), pode ficar numa pasta protegida.
+    Exceções estreitas à lista de pastas protegidas, sempre SEM entrar em subpastas:
+    - nomes exatos (ex.: C:\\Windows\\MEMORY.DMP);
+    - pasta pessoal (Downloads) só com uma lista de extensões (downloads incompletos).
     A raiz do disco continua proibida.
     """
-    if not alvo.nomes or alvo.recursivo or not alvo.pasta:
+    if alvo.recursivo or not alvo.pasta:
+        return False
+    if not (alvo.nomes or (alvo.pasta_pessoal and alvo.extensoes)):
         return False
     p = os.path.normpath(os.path.abspath(alvo.pasta))
     if not os.path.splitdrive(p)[1].strip("\\/"):
@@ -111,7 +117,7 @@ def _so_nomes_exatos(alvo: Alvo) -> bool:
 
 def _percorrer(alvo: Alvo, agora: float, ctl=None):
     """Devolve (arquivos, pastas): arquivos = [(caminho, tamanho)] que podem sair."""
-    if not (caminho_e_seguro(alvo.pasta) or _so_nomes_exatos(alvo)):
+    if not (caminho_e_seguro(alvo.pasta) or _excecao_protegida(alvo)):
         return [], []
     ctl = ctl or nulo()
     limite = agora - alvo.idade_horas * 3600
@@ -262,6 +268,33 @@ def alvos_dumps():
 def alvos_miniaturas():
     return [Alvo(_local("Microsoft", "Windows", "Explorer"), prefixos=("thumbcache_",),
                  extensoes=(".db",), recursivo=False)]
+
+
+def pasta_downloads() -> str:
+    """A pasta Downloads de verdade (a pessoa pode ter mudado de lugar)."""
+    try:
+        import ctypes
+        import uuid
+        guid = uuid.UUID("{374DE290-123F-4565-9164-39C4925E467B}")  # FOLDERID_Downloads
+        bufer = ctypes.c_wchar_p()
+        id_bytes = (ctypes.c_byte * 16).from_buffer_copy(guid.bytes_le)
+        if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(id_bytes), 0, None, ctypes.byref(bufer)) == 0:
+            caminho = bufer.value
+            ctypes.windll.ole32.CoTaskMemFree(bufer)
+            if caminho:
+                return caminho
+    except Exception:
+        pass
+    return os.path.join(_env("USERPROFILE"), "Downloads") if _env("USERPROFILE") else ""
+
+
+EXT_INCOMPLETOS = (".crdownload", ".part", ".partial", ".download", ".opdownload", ".tmp")
+
+
+def alvos_downloads():
+    """Downloads que nunca terminaram, com mais de 7 dias. Só esses tipos, só na pasta de cima."""
+    return [Alvo(pasta_downloads(), extensoes=EXT_INCOMPLETOS, idade_horas=24 * 7, recursivo=False,
+                 apagar_pastas=False, pasta_pessoal=True)]
 
 
 def alvos_logs():
@@ -427,6 +460,11 @@ ITENS = [
     ItemLimpeza("logs_windows", "Logs antigos do Windows (CBS e DISM)",
                 "Registros de instalação de atualizações com mais de 7 dias.",
                 alvos_logs),
+    ItemLimpeza("downloads_incompletos", "Downloads que não terminaram",
+                "Arquivos .crdownload, .part e .tmp na pasta Downloads, parados há mais de 7 dias "
+                "(restos de downloads que falharam). Só esses tipos e só na pasta Downloads, sem entrar "
+                "nas subpastas; seus arquivos normais não são tocados.",
+                alvos_downloads),
     ItemLimpeza("componentes", "Limpeza de componentes do Windows (WinSxS)",
                 "Remove versões antigas de arquivos do sistema substituídas por atualizações. O Windows "
                 "faz isso sozinho depois de 30 dias; aqui é na hora. Demora de 5 a 30 minutos e, "

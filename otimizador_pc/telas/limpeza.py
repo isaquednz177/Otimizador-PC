@@ -12,7 +12,8 @@ from otimizador_pc.telas.base import Pagina
 from otimizador_pc.util import formatar_tamanho
 
 SEM_ADMIN = {"temp_user", "navegador_chrome", "navegador_edge", "navegador_brave", "navegador_opera",
-             "navegador_operagx", "navegador_firefox", "shaders", "miniaturas", "lixeira", "dns"}
+             "navegador_operagx", "navegador_firefox", "shaders", "miniaturas", "lixeira", "dns",
+             "downloads_incompletos"}
 
 
 class Limpeza(Pagina):

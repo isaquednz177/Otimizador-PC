@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """Início: o estado do PC numa olhada e o que vale a pena fazer agora."""
 
+import os
+
 import customtkinter as ctk
 
 from otimizador_pc import ajustes as aj
-from otimizador_pc import boot, info, inicializacao as ini, ponto
+from otimizador_pc import boot, hardware, info, inicializacao as ini, limpeza, ponto
 from otimizador_pc import tema as t
 from otimizador_pc.telas.base import Pagina
 from otimizador_pc.util import formatar_tamanho
@@ -113,6 +115,8 @@ class Inicio(Pagina):
         r["removidos"] = list(dados.get("inicializacao_removida", {}).values())
         r["boot"], r["boot_erro"] = boot.ler(s, 10)
         r["info"] = info.resumo()
+        r["downloads"] = limpeza.analisar_item(limpeza.ITENS_POR_ID["downloads_incompletos"], s)
+        r["modo_jogo"] = bool(dados.get("modo_jogo", {}).get("ativo"))
         return r
 
     def _mostrar(self, r):
@@ -136,12 +140,32 @@ class Inicio(Pagina):
                           f"última vez · média recente {media:.0f} s")
         else:
             self._definir("boot", "—", r["boot_erro"] or "")
-        self._recomendacoes(r)
+        self._r = r
+        self._recomendacoes()
+        self.j.obter_hardware(self._com_hardware)
 
-    def _recomendacoes(self, r):
+    def _com_hardware(self, rel):
+        self._hw = rel
+        self._recomendacoes()
+
+    def _recomendacoes(self):
+        r = getattr(self, "_r", None)
+        if r is None:
+            return
         for w in self.lista_rec.winfo_children():
             w.destroy()
         recs = []
+        if r.get("modo_jogo"):
+            recs.append(("aviso", "O modo jogo está ligado. Quando terminar de jogar, saia dele para voltar o "
+                                  "plano de energia e reabrir os programas.", "ir para o modo jogo",
+                         lambda: self.j.ir("modo_jogo")))
+        rel = getattr(self, "_hw", None)
+        if rel is not None:
+            for tipo, texto, link in hardware.recomendacoes(rel):
+                if link:
+                    recs.append((tipo, texto, "abrir", lambda u=link: os.startfile(u)))
+                else:
+                    recs.append((tipo, texto, "ver hardware", lambda: self.j.ir("hardware")))
         d = r["info"]
         if d["ram_total"] and d["ram_pct"] >= 85:
             recs.append(("aviso", f"A memória está em {d['ram_pct']}%. O PC fica lento quando ela enche: "
@@ -167,6 +191,11 @@ class Inicio(Pagina):
         lix = r["lixeira"]
         if lix and lix[1] > 1 << 30:
             recs.append(("info", f"A Lixeira tem {formatar_tamanho(lix[1])}.", "ir para a limpeza",
+                         lambda: self.j.ir("limpeza")))
+        dl = r.get("downloads")
+        if dl and dl.bytes > 200 << 20:
+            recs.append(("info", f"{formatar_tamanho(dl.bytes)} em downloads que não terminaram, parados na pasta "
+                                 "Downloads há mais de uma semana.", "ir para a limpeza",
                          lambda: self.j.ir("limpeza")))
         parciais = [a.nome for a in aj.AJUSTES if r["estados"].get(a.id) == "parcial"]
         if parciais:

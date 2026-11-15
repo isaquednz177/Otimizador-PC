@@ -11,6 +11,10 @@ Mapa:
   ponto.py          ponto de restauração conferido de verdade
   inicializacao.py  programas, serviços e tarefas que abrem com o Windows
   processos.py      o que está gastando memória e processador
+  hardware.py       memória, discos, vídeo, bateria e atualizações (só lê)
+  modo_jogo.py      fecha o escolhido e liga o Alto desempenho; ao sair, volta tudo
+  atualizacao.py    avisa quando sai versão nova no GitHub
+  config.py         preferências da pessoa
   espaco.py         o que ocupa o disco (só mede)
   boot.py           tempo para ligar, pelo registro do Windows
   controle.py       cancelar e progresso das tarefas longas
@@ -22,4 +26,4 @@ Mapa:
 """
 
 APP_NOME = "Otimizador PC"
-APP_VERSAO = "2.1"
+APP_VERSAO = "2.2"
