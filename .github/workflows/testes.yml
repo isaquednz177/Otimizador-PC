@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - name: Instala o customtkinter (o teste das cores do tema precisa)
+        run: python -m pip install -r requirements.txt
       - name: Confere se tudo compila
         run: python -m compileall -q otimizador_pc main.py tests
       - name: Testes
