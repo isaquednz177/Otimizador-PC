@@ -50,6 +50,9 @@ class Janela(ctk.CTk):
         self.backup = Backup(ARQUIVO_BACKUP)
         self.config = Config()
         self.hardware = None          # leitura do hardware, feita uma vez (leva ~20 s)
+        self.historico = info.Historico()  # memória e processador dos últimos 3 minutos
+        self._processador = info.Processador()
+        self.amostra = info.resumo()
         self._esperando_hardware = None
         self._fila_ui = queue.Queue()
         self.ocupado = False
@@ -79,6 +82,7 @@ class Janela(ctk.CTk):
         if self.backup.dados.get("modo_jogo", {}).get("ativo"):
             self.log("O modo jogo ficou ligado da última vez. Para voltar tudo, use \"sair do modo jogo\".")
         self.atualizar_lateral()
+        self.after(2000, self._amostrar)
         self.ir("inicio")
         self.em_segundo_plano(lambda: atualizacao.verificar(APP_VERSAO), self._versao_nova)
 
@@ -173,6 +177,20 @@ class Janela(ctk.CTk):
 
     def pagina(self, chave):
         return self.paginas.get(chave)
+
+    def _amostrar(self):
+        """A cada 2 s: guarda memória e processador e avisa a página da tela (se ela quiser)."""
+        try:
+            self.amostra = info.resumo()
+            self.amostra["cpu"] = self._processador.ler()
+            self.historico.guardar(self.amostra["ram_pct"] if self.amostra["ram_total"] else None,
+                                   self.amostra["cpu"])
+            pagina = self.paginas.get(self.atual)
+            if pagina is not None and hasattr(pagina, "ao_amostrar"):
+                pagina.ao_amostrar(self.amostra)
+        except Exception as e:
+            self.log(f"[erro] medindo o uso: {e}")
+        self.after(2000, self._amostrar)
 
     def _versao_nova(self, resultado):
         if not resultado:

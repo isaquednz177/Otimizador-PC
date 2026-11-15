@@ -292,3 +292,147 @@ def cor_do_uso(fracao: float) -> str:
     if fracao >= 0.75:
         return LARANJA
     return NORMAL
+
+
+# ---------------------------------------------------------------- gráficos (desenhados à mão)
+class _Tela(tk.Canvas):
+    """Canvas que redesenha quando muda de tamanho e conhece a escala da tela."""
+
+    def __init__(self, pai, largura, altura, fundo=PAINEL):
+        self.e = escala(pai)
+        super().__init__(pai, width=int(largura * self.e), height=int(altura * self.e), bg=fundo,
+                         highlightthickness=0, bd=0)
+        self.bind("<Configure>", lambda ev: self.desenhar())
+
+    def px(self, v):
+        return int(v * self.e)
+
+    def letra(self, tipo, tamanho):
+        return (familia(tipo), -self.px(tamanho))
+
+    def desenhar(self):
+        pass
+
+
+class Anel(_Tela):
+    """Medidor em arco de 270 graus (como o ícone): trilho marrom e a parte usada colorida."""
+
+    def __init__(self, pai, tamanho=124, fundo=PAINEL):
+        self.fracao, self.valor, self.legenda = 0.0, "—", ""
+        super().__init__(pai, tamanho, tamanho, fundo)
+
+    def definir(self, fracao, valor, legenda=""):
+        self.fracao = max(0.0, min(1.0, fracao or 0.0))
+        self.valor, self.legenda = valor, legenda
+        self.desenhar()
+
+    def desenhar(self):
+        self.delete("all")
+        w, h = self.winfo_width(), self.winfo_height()
+        lado = min(w, h)
+        if lado < 20:
+            return
+        grossura = max(6, lado * 0.09)
+        m = grossura / 2 + 2
+        caixa = ((w - lado) / 2 + m, (h - lado) / 2 + m, (w + lado) / 2 - m, (h + lado) / 2 - m)
+        self.create_arc(caixa, start=225, extent=-270, style="arc", outline=LINHA, width=grossura)
+        if self.fracao > 0:
+            self.create_arc(caixa, start=225, extent=-270 * self.fracao, style="arc",
+                            outline=cor_do_uso(self.fracao), width=grossura)
+        cx, cy = w / 2, h / 2
+        self.create_text(cx, cy - lado * 0.04, text=self.valor, fill=TEXTO,
+                         font=(familia("numero"), -int(lado * 0.24)))
+        if self.legenda:
+            self.create_text(cx, cy + lado * 0.2, text=self.legenda, fill=SUAVE,
+                             font=(familia("corpo"), -int(lado * 0.095)))
+
+
+class Grafico(_Tela):
+    """Histórico em área (0 a 100%): linhas de 25 em 25, a curva e o ponto de agora."""
+
+    def __init__(self, pai, largura=300, altura=70, fundo=PAINEL, segundos=180):
+        self.valores, self.segundos = [], segundos
+        super().__init__(pai, largura, altura, fundo)
+
+    def definir(self, valores):
+        self.valores = list(valores)
+        self.desenhar()
+
+    def desenhar(self):
+        self.delete("all")
+        w, h = self.winfo_width(), self.winfo_height()
+        if w < 30 or h < 20:
+            return
+        esq, base, topo = self.px(28), h - self.px(14), self.px(4)
+        alt = base - topo
+        for pct in (0, 50, 100):
+            y = base - alt * pct / 100
+            self.create_line(esq, y, w, y, fill=LINHA, dash=(1, 3) if pct else ())
+            self.create_text(esq - self.px(4), y, text=f"{pct}%", anchor="e", fill=FRACO, font=self.letra("corpo", 9))
+        self.create_text(esq, h, text=f"{self.segundos // 60} min atrás", anchor="sw", fill=FRACO,
+                         font=self.letra("corpo", 9))
+        self.create_text(w, h, text="agora", anchor="se", fill=FRACO, font=self.letra("corpo", 9))
+        v = self.valores
+        if len(v) < 2:
+            return
+        total = max(len(v), 2)
+        passo = (w - esq - self.px(4)) / (total - 1)
+        pontos = [(esq + i * passo, base - alt * min(max(x, 0), 100) / 100) for i, x in enumerate(v)]
+        cor = cor_do_uso(v[-1] / 100)
+        area = [(pontos[0][0], base)] + pontos + [(pontos[-1][0], base)]
+        self.create_polygon([c for p in area for c in p], fill=ACENTO_FUNDO, outline="")
+        self.create_line([c for p in pontos for c in p], fill=cor, width=max(1, self.px(1.6)), smooth=True)
+        x, y = pontos[-1]
+        r = self.px(3)
+        self.create_oval(x - r, y - r, x + r, y + r, fill=cor, outline=PAINEL)
+
+
+CORES_PARTES = ["#E5474F", "#B3121B", "#8A0A12", "#C9732C", "#8C6447", "#6E4A32"]
+
+
+class Composicao(_Tela):
+    """Barra dividida em partes coloridas, com a legenda embaixo (nome e tamanho)."""
+
+    def __init__(self, pai, largura=600, altura=96, fundo=PAINEL):
+        self.partes, self.formatar = [], str
+        super().__init__(pai, largura, altura, fundo)
+
+    def definir(self, partes, formatar):
+        """partes: [(nome, valor, tipo)], tipo "programa", "outros", "windows" ou "livre"."""
+        self.partes, self.formatar = partes, formatar
+        self.desenhar()
+
+    def _cor(self, i, tipo):
+        return {"outros": "#4A3020", "windows": "#33221A", "livre": LINHA}.get(tipo, CORES_PARTES[i % len(CORES_PARTES)])
+
+    def desenhar(self):
+        self.delete("all")
+        w, h = self.winfo_width(), self.winfo_height()
+        total = sum(v for _, v, _ in self.partes)
+        if w < 50 or not total:
+            return
+        alt_barra = self.px(18)
+        x = 0
+        for i, (nome, valor, tipo) in enumerate(self.partes):
+            largura = w * valor / total
+            if largura >= 1:
+                self.create_rectangle(x, 0, x + largura - (self.px(2) if largura > 4 else 0), alt_barra,
+                                      fill=self._cor(i, tipo), outline="")
+            x += largura
+        # legenda em colunas
+        y, x = alt_barra + self.px(12), 0
+        coluna = max(self.px(190), w / 5 if w > self.px(1100) else w / 4)
+        for i, (nome, valor, tipo) in enumerate(self.partes):
+            if x + coluna > w + 1:
+                x, y = 0, y + self.px(22)
+            q = self.px(10)
+            self.create_rectangle(x, y, x + q, y + q, fill=self._cor(i, tipo), outline="")
+            texto = nome if len(nome) <= 24 else nome[:22] + "…"
+            self.create_text(x + q + self.px(6), y + q / 2, text=texto, anchor="w", fill=SUAVE if tipo != "programa" else TEXTO,
+                             font=self.letra("corpo", 11))
+            self.create_text(x + coluna - self.px(14), y + q / 2, text=self.formatar(valor), anchor="e", fill=SUAVE,
+                             font=self.letra("numero", 11))
+            x += coluna
+        necessario = y + self.px(22)
+        if abs(necessario - h) > 2:
+            self.configure(height=necessario)
