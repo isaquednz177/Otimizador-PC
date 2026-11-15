@@ -4,6 +4,7 @@
 from otimizador_pc.telas.ajuda import Ajuda
 from otimizador_pc.telas.ajustes import Ajustes
 from otimizador_pc.telas.desempenho import Desempenho
+from otimizador_pc.telas.desinstalar import Desinstalar
 from otimizador_pc.telas.espaco import Espaco
 from otimizador_pc.telas.hardware import Hardware
 from otimizador_pc.telas.inicializacao import Inicializacao
@@ -20,6 +21,7 @@ PAGINAS = [
     ("modo_jogo", "Modo jogo", ModoJogo),
     ("limpeza", "Limpeza", Limpeza),
     ("espaco", "Espaço no disco", Espaco),
+    ("desinstalar", "Desinstalar programas", Desinstalar),
     ("ajustes", "Ajustes do Windows", Ajustes),
     ("inicializacao", "Abrem com o Windows", Inicializacao),
     ("hardware", "Peças do PC", Hardware),

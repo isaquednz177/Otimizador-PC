@@ -22,6 +22,10 @@ class SistemaFalso:
         self.falhar_reg = set()  # nomes de valor que dão PermissionError ao gravar
         self.falhar_servico = set()
         self._novo = 0
+        self.chaves = set()      # (hive, caminho.lower()) de chaves sem valores
+        self.exportadas = []
+        self.lixeira = []
+        self.ao_desinstalar = None
 
     # registro
     def _k(self, hive, caminho, nome):
@@ -121,7 +125,49 @@ class SistemaFalso:
 
     # serviços de outros programas (usa os mesmos dados de self.servicos, com tipo/caminho)
     def reg_subchaves(self, hive, caminho):
-        return list(self.servicos) if caminho.lower().endswith("services") else []
+        if caminho.lower().endswith("services"):
+            return list(self.servicos)
+        base = caminho.lower().rstrip("\\") + "\\"
+        nomes = []
+        for h, c in {(h, c) for (h, c, _n) in self.reg} | self.chaves:
+            if h == hive and c.startswith(base):
+                filho = c[len(base):].split("\\")[0]
+                if filho and filho not in nomes:
+                    nomes.append(filho)
+        return nomes
+
+    def reg_chave_existe(self, hive, caminho):
+        c = caminho.lower()
+        return any(h == hive and (k == c or k.startswith(c + "\\"))
+                   for h, k in {(h, k) for (h, k, _n) in self.reg} | self.chaves)
+
+    def reg_exportar(self, hive, caminho, arquivo):
+        if not self.reg_chave_existe(hive, caminho):
+            return False, "não existe"
+        with open(arquivo, "w", encoding="utf-8") as f:
+            f.write("[" + hive + "\\" + caminho + "]\n")
+        self.exportadas.append((hive, caminho, arquivo))
+        return True, "ok"
+
+    def reg_apagar_chave(self, hive, caminho):
+        c = caminho.lower()
+        dentro = lambda k: k == c or k.startswith(c + "\\")
+        self.reg = {k: v for k, v in self.reg.items() if not (k[0] == hive and dentro(k[1]))}
+        self.chaves = {k for k in self.chaves if not (k[0] == hive and dentro(k[1]))}
+        self.comandos.append(("reg_apagar", hive, caminho))
+        return True, "ok"
+
+    def para_lixeira(self, caminho):
+        import shutil
+        self.lixeira.append(caminho)
+        shutil.rmtree(caminho)
+        return True, "ok"
+
+    def rodar_desinstalador(self, comando, ctl=None):
+        self.comandos.append(("desinstalar", comando))
+        if self.ao_desinstalar:
+            self.ao_desinstalar(comando)
+        return 0, ""
 
     def servico_info(self, nome):
         s = self.servicos.get(nome)
