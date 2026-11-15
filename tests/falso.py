@@ -119,6 +119,30 @@ class SistemaFalso:
         self.mouse = list(valores)
         return True, "ok"
 
+    # serviços de outros programas (usa os mesmos dados de self.servicos, com tipo/caminho)
+    def reg_subchaves(self, hive, caminho):
+        return list(self.servicos) if caminho.lower().endswith("services") else []
+
+    def servico_info(self, nome):
+        s = self.servicos.get(nome)
+        if s is None:
+            return None
+        return {"start": s["start"], "atrasado": s["atrasado"], "tipo": s.get("tipo", 0x10),
+                "caminho": s.get("caminho", ""), "exibicao": s.get("exibicao", nome)}
+
+    def servico_terceiro_definir(self, nome, start, atrasado=False):
+        from otimizador_pc.sistema import eh_servico_de_terceiro
+        info = self.servico_info(nome)
+        if info is None or not eh_servico_de_terceiro(nome, info["tipo"], info["caminho"]):
+            return False, "não"
+        self.servicos[nome]["start"] = start
+        self.servicos[nome]["atrasado"] = start == 2 and atrasado
+        return True, "ok"
+
+    def encerrar(self, pids, forcar=False):
+        self.comandos.append(("encerrar", tuple(pids), forcar))
+        return True, ""
+
     # outros
     def processos(self):
         return set(self.abertos)

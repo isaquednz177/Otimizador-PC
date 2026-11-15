@@ -37,7 +37,7 @@ ATRASADO_PADRAO = {"WSearch": True}
 
 
 def vazio() -> dict:
-    return {"versao": VERSAO, "ajustes": {}, "inicializacao_removida": {}}
+    return {"versao": VERSAO, "ajustes": {}, "inicializacao_removida": {}, "servicos_terceiros": {}}
 
 
 def migrar_v1(antigo: dict) -> dict:

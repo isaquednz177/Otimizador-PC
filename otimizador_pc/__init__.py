@@ -9,11 +9,17 @@ Mapa:
   ajustes.py        ajustes reversíveis e o motor que guarda o original antes
   backup.py         o arquivo com o estado original (e a conversão da versão 1)
   ponto.py          ponto de restauração conferido de verdade
-  inicializacao.py  programas que abrem com o Windows
+  inicializacao.py  programas, serviços e tarefas que abrem com o Windows
+  processos.py      o que está gastando memória e processador
+  espaco.py         o que ocupa o disco (só mede)
+  boot.py           tempo para ligar, pelo registro do Windows
+  controle.py       cancelar e progresso das tarefas longas
   info.py           RAM e disco
   registro.py       registro de atividades (tela + arquivo)
-  interface.py      a janela
+  tema.py           cores, fontes e peças da tela
+  interface.py      a janela (menu lateral, barra de status)
+  telas/            uma página por arquivo
 """
 
 APP_NOME = "Otimizador PC"
-APP_VERSAO = "2.0"
+APP_VERSAO = "2.1"

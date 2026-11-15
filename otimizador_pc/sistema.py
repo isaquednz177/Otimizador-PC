@@ -84,6 +84,30 @@ def tarefa_ativa_do_xml(xml: str):
     return True if not e else e.group(1).lower() == "true"
 
 
+SERVICOS_PROTEGIDOS = frozenset({
+    "windefend", "mdcoresvc", "wdnissvc", "sense", "securityhealthservice", "wscsvc", "mpssvc",
+    "sgrmbroker", "webthreatdefsvc", "webthreatdefusersvc",
+})
+
+
+def eh_servico_de_terceiro(nome: str, tipo: int, caminho: str) -> bool:
+    """
+    True para serviço de OUTRO programa (Steam, MySQL, atualizadores...).
+    Fora: drivers, tudo dentro da pasta do Windows, o antivírus do Windows
+    e a lista de proteção.
+    """
+    if not (int(tipo or 0) & 0x30):  # 0x10/0x20 = serviço Win32; o resto é driver
+        return False
+    if (nome or "").lower() in SERVICOS_PROTEGIDOS:
+        return False
+    c = (caminho or "").lower().replace("/", "\\")
+    if not c.strip():
+        return False
+    proibidos = ("\\windows\\", "%systemroot%", "systemroot\\", "\\windows defender",
+                 "\\microsoft\\windows defender", "system32\\")
+    return not any(p in c for p in proibidos)
+
+
 def processos_do_tasklist(saida: str) -> set:
     """Nomes dos processos (em minúsculas) a partir do `tasklist /FO CSV /NH`."""
     nomes = set()
@@ -160,7 +184,48 @@ class Sistema:
             pass
         return itens
 
+    def reg_subchaves(self, hive: str, caminho: str) -> list:
+        nomes = []
+        try:
+            with winreg.OpenKey(self._hives[hive], caminho, 0, winreg.KEY_READ | self._v64) as k:
+                i = 0
+                while True:
+                    try:
+                        nomes.append(winreg.EnumKey(k, i))
+                    except OSError:
+                        break
+                    i += 1
+        except OSError:
+            pass
+        return nomes
+
     # ------------------------------------------------------------ serviços
+    def servico_info(self, nome: str):
+        """{"start", "atrasado", "tipo", "caminho", "exibicao"} lidos do registro, ou None."""
+        chave = rf"SYSTEM\CurrentControlSet\Services\{nome}"
+        cfg = self.servico_config(nome)
+        if cfg is None:
+            return None
+        tipo = self.reg_ler("HKLM", chave, "Type")
+        caminho = self.reg_ler("HKLM", chave, "ImagePath")
+        exibicao = self.reg_ler("HKLM", chave, "DisplayName")
+        nome_tela = exibicao[0] if exibicao and not str(exibicao[0]).startswith("@") else nome
+        return dict(cfg, tipo=int(tipo[0]) if tipo else 0,
+                    caminho=str(caminho[0]) if caminho else "", exibicao=str(nome_tela))
+
+    def servico_terceiro_definir(self, nome: str, start: int, atrasado: bool = False) -> tuple:
+        """Automático (2) ou manual (3) para serviço de outro programa. Nunca desativa."""
+        info = self.servico_info(nome)
+        if info is None:
+            return False, "serviço não existe"
+        if not eh_servico_de_terceiro(nome, info["tipo"], info["caminho"]):
+            return False, "serviço do Windows: não mexo"
+        if start not in (2, 3) or info["start"] not in (2, 3):
+            return False, "só troco entre automático e manual"
+        tipo = "delayed-auto" if (start == 2 and atrasado) else NOME_START[start]
+        codigo, saida = self.rodar(["sc", "config", nome, "start=", tipo], timeout=60)
+        return (True, "ok") if codigo == 0 else (False, saida.strip()[:200])
+
     def servico_config(self, nome: str):
         """{"start": 0..4, "atrasado": bool}, ou None se o serviço não existe."""
         chave = rf"SYSTEM\CurrentControlSet\Services\{nome}"
@@ -304,6 +369,26 @@ class Sistema:
     def processos(self) -> set:
         _, saida = self.rodar(["tasklist", "/FO", "CSV", "/NH"], timeout=30)
         return processos_do_tasklist(saida)
+
+    def encerrar(self, pids: list, forcar: bool = False) -> tuple:
+        """Fecha processos. Sem `forcar`, pede para fechar (como clicar no X)."""
+        cmd = ["taskkill"]
+        for pid in pids[:200]:
+            cmd += ["/PID", str(int(pid))]
+        cmd.append("/T")
+        if forcar:
+            cmd.append("/F")
+        codigo, saida = self.rodar(cmd, timeout=30)
+        return codigo == 0, saida.strip()[:200]
+
+    def abrir_no_explorador(self, caminho: str, selecionar: bool = False) -> None:
+        try:
+            if selecionar:
+                subprocess.Popen(["explorer", "/select,", os.path.normpath(caminho)])
+            else:
+                os.startfile(os.path.normpath(caminho))
+        except OSError:
+            pass
 
     def listar_pasta(self, pasta: str) -> list:
         try:

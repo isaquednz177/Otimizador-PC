@@ -4,6 +4,14 @@ Limpeza e ajustes do Windows 10 e 11, **todos reversíveis**. Feito para uso pes
 
 ## O que ele faz
 
+**Início**: memória, disco, tempo para ligar, ajustes, o que abre com o Windows e a Lixeira numa olhada, mais uma lista de recomendações feita para o seu PC.
+
+**Desempenho**: o que está gastando memória e processador agora, somando todos os processos de cada programa (o mesmo número do Gerenciador de Tarefas). Mostra o que abre com o Windows e fecha o programa (primeiro pedindo, como no X; só força se você confirmar). Processos do Windows e do antivírus nunca têm o botão "fechar".
+
+**Espaço em disco**: mede o C: (ou outra pasta), deixa entrar pasta por pasta, lista os maiores arquivos com "mostrar na pasta" e explica os nomes estranhos (pagefile.sys, WinSxS, hiberfil.sys...). **Só mostra, nunca apaga.** Junções não contam duas vezes, e arquivos do OneDrive que estão só na nuvem contam zero.
+
+**Tempo para ligar**: o histórico do próprio Windows (evento 100 do Diagnostics-Performance), em gráfico, com a média antes e depois dos ajustes. Precisa de Administrador.
+
 **Limpeza**: "Analisar" mostra quanto cada item libera, sem apagar nada.
 - Temporários do usuário e do Windows (os das últimas 24 h ficam, para não quebrar uma instalação em andamento)
 - Relatórios de erro, despejos de tela azul e logs antigos do Windows
@@ -21,9 +29,16 @@ Limpeza e ajustes do Windows 10 e 11, **todos reversíveis**. Feito para uso pes
 - Plano de energia Alto desempenho (se o PC esconde esse plano, ele cria uma cópia e apaga ao reverter)
 - Windows Search, SysMain e hibernação
 
-**Inicialização**: liga e desliga os programas que abrem com o Windows, do mesmo jeito que o Gerenciador de Tarefas. Nada é apagado.
+**Inicialização**: tudo o que abre com o Windows, em três listas:
+- programas (registro e pastas Inicializar), ligados e desligados do mesmo jeito que o Gerenciador de Tarefas;
+- serviços de outros programas (MySQL, atualizadores, Office...), trocados entre automático e **manual**, nunca "desativado"; como estava fica no backup. Serviços do Windows e do antivírus não aparecem;
+- tarefas agendadas de outros programas (fora da pasta `\Microsoft\`), com quando cada uma roda.
+
+Nada é apagado.
 
 **Reverter**: volta cada ajuste para como estava antes.
+
+Toda tarefa longa mostra o progresso na barra de baixo e pode ser **cancelada**. Ela para no próximo ponto seguro, nunca no meio de uma gravação.
 
 ## Segurança
 
@@ -53,7 +68,7 @@ O `.exe` não tem assinatura digital, então o Controle de Aplicativos Inteligen
 python -m unittest discover -s tests
 ```
 
-Os testes usam um Windows falso (`tests/falso.py`), então não mudam nada no PC.
+Os testes usam um Windows falso (`tests/falso.py`), então não mudam nada no PC. O GitHub roda os mesmos testes num Windows dele a cada envio (`.github/workflows/testes.yml`).
 
 | Arquivo | Papel |
 |---|---|
@@ -63,8 +78,17 @@ Os testes usam um Windows falso (`tests/falso.py`), então não mudam nada no PC
 | `otimizador_pc/seguranca.py` | pastas proibidas e atalhos de pasta |
 | `otimizador_pc/backup.py` | o arquivo de backup e a conversão do formato da versão 1 |
 | `otimizador_pc/ponto.py` | ponto de restauração conferido |
-| `otimizador_pc/inicializacao.py` | programas que abrem com o Windows |
-| `otimizador_pc/interface.py` | a janela |
+| `otimizador_pc/inicializacao.py` | programas, serviços e tarefas que abrem com o Windows |
+| `otimizador_pc/processos.py` | memória e processador por programa (uma chamada só ao Windows) |
+| `otimizador_pc/espaco.py` | o que ocupa o disco (só mede) |
+| `otimizador_pc/boot.py` | tempo para ligar, pelo registro do Windows |
+| `otimizador_pc/controle.py` | cancelar e progresso |
+| `otimizador_pc/tema.py` | cores, fontes e peças da tela |
+| `otimizador_pc/interface.py` | a janela: menu lateral, barra de status, threads |
+| `otimizador_pc/telas/` | uma página por arquivo |
+
+**Visual:** escuro com acento âmbar, cantos quase retos, Bahnschrift nos títulos e números, Segoe UI no texto e os ícones do próprio Windows (Segoe Fluent Icons). As cores ficam todas em `tema.py`.
+**Página nova:** crie em `telas/`, herdando de `Pagina`, e ponha na lista `PAGINAS` de `telas/__init__.py`.
 
 **Ajuste novo:** acrescente em `AJUSTES` (`ajustes.py`). O teste reclama se o mesmo passo aparecer em dois ajustes.
 **Item de limpeza novo:** acrescente em `ITENS` (`limpeza.py`), com as pastas como `Alvo`.

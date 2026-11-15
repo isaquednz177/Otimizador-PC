@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from otimizador_pc.controle import nulo
 from otimizador_pc.seguranca import caminho_e_seguro, dentro_de, eh_link
 
 
@@ -108,27 +109,29 @@ def _so_nomes_exatos(alvo: Alvo) -> bool:
     return stat.S_ISDIR(st.st_mode) and not eh_link(st)
 
 
-def _percorrer(alvo: Alvo, agora: float):
+def _percorrer(alvo: Alvo, agora: float, ctl=None):
     """Devolve (arquivos, pastas): arquivos = [(caminho, tamanho)] que podem sair."""
     if not (caminho_e_seguro(alvo.pasta) or _so_nomes_exatos(alvo)):
         return [], []
+    ctl = ctl or nulo()
     limite = agora - alvo.idade_horas * 3600
     raiz = os.path.normcase(os.path.abspath(alvo.pasta)).rstrip("\\/") + os.sep
     # Primeiro nível aqui; cada subpasta de cima numa thread (listar pastas
     # espera o disco, e o Windows atende vários pedidos ao mesmo tempo).
-    arquivos, pastas, subpastas = _varrer(alvo, raiz, [alvo.pasta], limite, so_um_nivel=True)
+    arquivos, pastas, subpastas = _varrer(alvo, raiz, [alvo.pasta], limite, ctl, so_um_nivel=True)
     if subpastas:
         with ThreadPoolExecutor(max_workers=min(8, len(subpastas))) as pool:
-            for a, p, _ in pool.map(lambda d: _varrer(alvo, raiz, [d], limite), subpastas):
+            for a, p, _ in pool.map(lambda d: _varrer(alvo, raiz, [d], limite, ctl), subpastas):
                 arquivos += a
                 pastas += p
     return arquivos, pastas
 
 
-def _varrer(alvo: Alvo, raiz: str, pilha: list, limite: float, so_um_nivel: bool = False):
+def _varrer(alvo: Alvo, raiz: str, pilha: list, limite: float, ctl, so_um_nivel: bool = False):
     """Varre as pastas da pilha. `raiz` é a pasta do alvo normalizada, com a barra no fim."""
     arquivos, pastas, subpastas = [], [], []
     while pilha:
+        ctl.checar()
         atual = pilha.pop()
         try:
             entradas = list(os.scandir(atual))
@@ -156,16 +159,20 @@ def _varrer(alvo: Alvo, raiz: str, pilha: list, limite: float, so_um_nivel: bool
     return arquivos, pastas, subpastas
 
 
-def analisar_alvo(alvo: Alvo, agora: float = None) -> Resultado:
-    arquivos, _ = _percorrer(alvo, time.time() if agora is None else agora)
+def analisar_alvo(alvo: Alvo, agora: float = None, ctl=None) -> Resultado:
+    arquivos, _ = _percorrer(alvo, time.time() if agora is None else agora, ctl)
     return Resultado(apagados=len(arquivos), bytes=sum(t for _, t in arquivos))
 
 
-def limpar_alvo(alvo: Alvo, agora: float = None) -> Resultado:
+def limpar_alvo(alvo: Alvo, agora: float = None, ctl=None) -> Resultado:
+    """Apaga o que a análise acharia. Cancelando no meio, para e devolve o que já saiu."""
     agora = time.time() if agora is None else agora
     res = Resultado()
-    arquivos, pastas = _percorrer(alvo, agora)
+    arquivos, pastas = _percorrer(alvo, agora, ctl)
     for caminho, tamanho in arquivos:
+        if ctl and ctl.parado():
+            res.nota = "cancelado no meio"
+            return res
         try:
             try:
                 os.chmod(caminho, stat.S_IWRITE)  # tira o "somente leitura"
@@ -438,7 +445,7 @@ ITENS_POR_ID = {i.id: i for i in ITENS}
 
 
 # ---------------------------------------------------------------- execução
-def analisar_item(item: ItemLimpeza, s):
+def analisar_item(item: ItemLimpeza, s, ctl=None):
     """Resultado com o que sairia, ou None quando não dá para estimar."""
     if item.analisar_especial:
         return item.analisar_especial(s)
@@ -446,11 +453,12 @@ def analisar_item(item: ItemLimpeza, s):
         return None
     total = Resultado()
     for alvo in item.alvos():
-        total.somar(analisar_alvo(alvo))
+        total.somar(analisar_alvo(alvo, ctl=ctl))
     return total
 
 
-def limpar_item(item: ItemLimpeza, s, log=print) -> Resultado:
+def limpar_item(item: ItemLimpeza, s, log=print, ctl=None) -> Resultado:
+    """Limpa um item. Cancelar levanta Cancelado entre pastas, ou para no meio dos arquivos."""
     if item.fechar_processos:
         abertos = s.processos() & set(item.fechar_processos)
         if abertos:
@@ -471,7 +479,11 @@ def limpar_item(item: ItemLimpeza, s, log=print) -> Resultado:
     try:
         total = Resultado()
         for alvo in item.alvos():
-            total.somar(limpar_alvo(alvo))
+            parcial = limpar_alvo(alvo, ctl=ctl)
+            total.somar(parcial)
+            if parcial.nota:
+                total.nota = parcial.nota
+                break
         return total
     finally:
         for nome in religar:
