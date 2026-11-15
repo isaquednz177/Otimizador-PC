@@ -86,12 +86,9 @@ class Janela(ctk.CTk):
         lado.grid_columnconfigure(0, weight=1)
 
         marca = ctk.CTkFrame(lado, fg_color="transparent")
-        marca.grid(row=0, column=0, sticky="ew", padx=20, pady=(22, 18))
-        t.rotulo(marca, "OTIMIZADOR", "titulo", 20, t.TEXTO).pack(anchor="w")
-        linha = ctk.CTkFrame(marca, fg_color="transparent")
-        linha.pack(anchor="w", fill="x")
-        ctk.CTkFrame(linha, fg_color=t.ACENTO, width=22, height=3, corner_radius=0).pack(side="left", pady=(2, 0))
-        t.rotulo(linha, f"  PC  ·  {APP_VERSAO}", "numero", 11, t.SUAVE).pack(side="left")
+        marca.grid(row=0, column=0, sticky="ew", padx=12, pady=(18, 14))
+        t.Letreiro(marca, "Otimizador", tamanho=27, cor=t.ACENTO).pack(fill="x")
+        t.rotulo(marca, f"PC  ·  versão {APP_VERSAO}", "titulo", 13, t.SUAVE).pack(anchor="w", padx=14)
 
         for i, (chave, nome, _) in enumerate(PAGINAS, start=1):
             self.nav[chave] = self._item_nav(lado, i, chave, nome)
@@ -120,13 +117,13 @@ class Janela(ctk.CTk):
         marca.place(x=0, y=6, relheight=0.7)
         ic = t.icone(f, chave, 15, t.FRACO)
         ic.place(x=22, rely=0.5, anchor="w")
-        tx = t.rotulo(f, nome, "corpo", 13, t.SUAVE)
+        tx = t.rotulo(f, nome, "titulo", 15, t.SUAVE)
         tx.place(x=52, rely=0.5, anchor="w")
         item = {"quadro": f, "marca": marca, "icone": ic, "texto": tx}
 
         def entrar(_):
             if self.atual != chave:
-                f.configure(fg_color=t.PAINEL)
+                f.configure(fg_color=t.NAV_HOVER)
 
         def sair(_):
             if self.atual != chave:
@@ -163,7 +160,7 @@ class Janela(ctk.CTk):
             n["texto"].configure(text_color=t.SUAVE)
         self.atual = chave
         n = self.nav[chave]
-        n["quadro"].configure(fg_color=t.PAINEL)
+        n["quadro"].configure(fg_color=t.NAV_ATIVO)
         n["marca"].configure(fg_color=t.ACENTO)
         n["icone"].configure(text_color=t.ACENTO)
         n["texto"].configure(text_color=t.TEXTO)

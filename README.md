@@ -106,7 +106,9 @@ Os testes usam um Windows falso (`tests/falso.py`), então não mudam nada no PC
 | `otimizador_pc/interface.py` | a janela: menu lateral, barra de status, threads |
 | `otimizador_pc/telas/` | uma página por arquivo |
 
-**Visual:** escuro com acento âmbar, cantos quase retos, Bahnschrift nos títulos e números, Segoe UI no texto e os ícones do próprio Windows (Segoe Fluent Icons). As cores ficam todas em `tema.py`.
+**Visual:** o gótico do site MFG (estilo Dark Vampira): preto-vinho, pergaminho, ouro velho e vinho; títulos das páginas em UnifrakturCook sobre um fundo de TV de tubo (linhas de varredura e granulado), rótulos em Grenze Gotisch, texto e números em Grenze, cartões com as volutas da moldura do site nos cantos, botão principal vinho com friso dourado e cantos retos. Rótulos em fraktur nunca em MAIÚSCULAS (fica ilegível). As cores ficam todas em `tema.py`.
+
+**Fontes:** ficam em `otimizador_pc/arte/` (licença OFL, `OFL.txt`) e são carregadas só para o programa, sem instalar nada no Windows. Saem das fontes do site com `python scripts/gerar_fontes.py CAMINHO\mfg\assets\fontes` (precisa de `pip install fonttools brotli`).
 **Página nova:** crie em `telas/`, herdando de `Pagina`, e ponha na lista `PAGINAS` de `telas/__init__.py`.
 
 **Ajuste novo:** acrescente em `AJUSTES` (`ajustes.py`). O teste reclama se o mesmo passo aparecer em dois ajustes.

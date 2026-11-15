@@ -11,8 +11,8 @@ from otimizador_pc import ponto
 from otimizador_pc import tema as t
 from otimizador_pc.telas.base import Pagina
 
-TEXTO = {"aplicado": "JÁ APLICADO", "parcial": "EM PARTE", "padrao": "PADRÃO DO WINDOWS",
-         "indisponivel": "NÃO EXISTE AQUI", None: "conferindo..."}
+TEXTO = {"aplicado": "já aplicado", "parcial": "em parte", "padrao": "padrão do Windows",
+         "indisponivel": "não existe aqui", None: "conferindo..."}
 COR = {"aplicado": t.OK, "parcial": t.ACENTO, "padrao": t.SUAVE, "indisponivel": t.FRACO, None: t.FRACO}
 
 

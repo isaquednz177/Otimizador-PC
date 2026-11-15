@@ -27,7 +27,7 @@ class ModoJogo(Pagina):
         topo.grid_columnconfigure(0, weight=1)
         esq = ctk.CTkFrame(topo, fg_color="transparent")
         esq.grid(row=0, column=0, sticky="w", padx=18, pady=16)
-        t.rotulo(esq, "ESTADO", "titulo", 11, t.SUAVE).pack(anchor="w")
+        t.rotulo(esq, "Estado", "titulo", 11, t.SUAVE).pack(anchor="w")
         self.lbl_estado = t.rotulo(esq, "", "numero", 28)
         self.lbl_estado.pack(anchor="w")
         self.lbl_desde = t.rotulo(esq, "", "corpo", 12, t.FRACO)
@@ -47,7 +47,7 @@ class ModoJogo(Pagina):
 
         lista = t.cartao(self.corpo)
         lista.pack(fill="both", expand=True)
-        t.rotulo(lista, "FECHAR AO ENTRAR NO MODO JOGO", "titulo", 11, t.SUAVE).pack(anchor="w", padx=18, pady=(14, 0))
+        t.rotulo(lista, "Fechar ao entrar no modo jogo", "titulo", 11, t.SUAVE).pack(anchor="w", padx=18, pady=(14, 0))
         t.rotulo(lista, "Programas abertos agora. O que você marcar fica guardado para as próximas vezes.",
                  "corpo", 12, t.FRACO).pack(anchor="w", padx=18)
         self.area = t.rolavel(lista)
@@ -62,7 +62,7 @@ class ModoJogo(Pagina):
     def _estado(self):
         ligado = mj.ativo(self.j.backup)
         desde = self.j.backup.dados.get("modo_jogo", {}).get("desde", "")
-        self.lbl_estado.configure(text="LIGADO" if ligado else "DESLIGADO", text_color=t.ACENTO if ligado else t.SUAVE)
+        self.lbl_estado.configure(text="Ligado" if ligado else "Desligado", text_color=t.ACENTO if ligado else t.SUAVE)
         self.lbl_desde.configure(text=f"desde {desde}" if ligado else "")
         self.btn.configure(text="sair do modo jogo" if ligado else "entrar no modo jogo")
 

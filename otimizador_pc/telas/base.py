@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Base das páginas: título, subtítulo e um lugar para os botões no topo."""
+"""Base das páginas: o letreiro gótico no topo, os botões à direita e o corpo."""
 
 import customtkinter as ctk
 
@@ -15,20 +15,16 @@ class Pagina(ctk.CTkFrame):
         self.j = janela
         self.visivel = False
         self.grid_columnconfigure(0, weight=1)
-        topo = ctk.CTkFrame(self, fg_color="transparent")
-        topo.grid(row=0, column=0, sticky="ew", padx=28, pady=(24, 14))
-        topo.grid_columnconfigure(0, weight=1)
-        t.rotulo(topo, self.titulo, "titulo", 24).grid(row=0, column=0, sticky="w")
-        if self.subtitulo:
-            t.rotulo(topo, self.subtitulo, "corpo", 12, t.SUAVE, wraplength=820).grid(
-                row=1, column=0, columnspan=2, sticky="w", pady=(4, 0))
-        # quadro dos botões do topo; sem tamanho próprio (vazio, o padrão seria 200 x 200)
-        self.acoes = ctk.CTkFrame(topo, fg_color="transparent", width=1, height=1)
-        self.acoes.grid(row=0, column=1, sticky="e")
+        self.letreiro = t.Letreiro(self, self.titulo, self.subtitulo, tamanho=30)
+        self.letreiro.grid(row=0, column=0, sticky="ew", padx=28, pady=(20, 14))
+        # botões do topo, por cima do letreiro, à direita
+        self.acoes = ctk.CTkFrame(self, fg_color=t.FUNDO, corner_radius=0, width=1, height=1)
+        self.acoes.place(relx=1.0, x=-40, y=34, anchor="ne")
         self.corpo = ctk.CTkFrame(self, fg_color="transparent")
         self.corpo.grid(row=1, column=0, sticky="nsew", padx=28, pady=(0, 18))
         self.grid_rowconfigure(1, weight=1)
         self.montar()
+        self.acoes.lift()
 
     # para as páginas
     def montar(self):

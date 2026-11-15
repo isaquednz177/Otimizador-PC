@@ -51,7 +51,7 @@ class Espaco(Pagina):
 
         dir_ = t.cartao(self.corpo)
         dir_.grid(row=1, column=1, sticky="nsew", padx=(7, 0))
-        t.rotulo(dir_, "MAIORES ARQUIVOS", "titulo", 12, t.SUAVE).pack(anchor="w", padx=18, pady=(12, 4))
+        t.rotulo(dir_, "Maiores arquivos", "titulo", 12, t.SUAVE).pack(anchor="w", padx=18, pady=(12, 4))
         self.maiores = t.rolavel(dir_)
         self.maiores.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
@@ -102,7 +102,7 @@ class Espaco(Pagina):
             return
         self.atual = pasta.caminho
         self.lbl_caminho.configure(text=pasta.caminho, text_color=t.TEXTO)
-        self.lbl_total.configure(text=f"{formatar_tamanho(pasta.total)} NESTA PASTA")
+        self.lbl_total.configure(text=f"{formatar_tamanho(pasta.total)} nesta pasta")
         for w in self.lista.winfo_children():
             w.destroy()
         itens = list(pasta.filhas[:MAX_LINHAS])

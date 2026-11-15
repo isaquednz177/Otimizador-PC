@@ -30,8 +30,8 @@ class Desempenho(Pagina):
         resumo = t.cartao(self.corpo)
         resumo.pack(fill="x")
         resumo.grid_columnconfigure((0, 1), weight=1, uniform="r")
-        self.mem = self._medidor(resumo, 0, "MEMÓRIA EM USO")
-        self.cpu = self._medidor(resumo, 1, "PROCESSADOR")
+        self.mem = self._medidor(resumo, 0, "Memória em uso")
+        self.cpu = self._medidor(resumo, 1, "Processador")
 
         lista = t.cartao(self.corpo)
         lista.pack(fill="both", expand=True, pady=(14, 0))
@@ -39,7 +39,7 @@ class Desempenho(Pagina):
         cab.pack(fill="x", padx=18, pady=(12, 4))
         cab.grid_columnconfigure(0, weight=1)
         # mesmas larguras das linhas: rótulo de 90 (memória), 70 + 8 (cpu), botão de 84 + 12
-        for col, (texto, larg) in enumerate((("PROGRAMA", 0), ("MEMÓRIA", 90), ("CPU", 70), ("", 84))):
+        for col, (texto, larg) in enumerate((("Programa", 0), ("Memória", 90), ("CPU", 70), ("", 84))):
             r = t.rotulo(cab, texto, "titulo", 11, t.FRACO, anchor="w" if col == 0 else "e", width=larg or 0)
             r.grid(row=0, column=col, sticky="w" if col == 0 else "e",
                    padx=(10, 8) if col == 0 else ((8, 8) if col == 2 else (4, 8) if col == 3 else 0))

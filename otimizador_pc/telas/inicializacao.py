@@ -74,7 +74,7 @@ class Inicializacao(Pagina):
             w.destroy()
 
         if d["removidos"]:
-            self._secao("APAGADOS PELA VERSÃO ANTIGA",
+            self._secao("Apagados pela versão antiga",
                         "A versão 1.1 apagava os programas da inicialização em vez de só desligar. "
                         "Restaurar põe de volta como era.")
             for chave, item in d["removidos"].items():
@@ -84,7 +84,7 @@ class Inicializacao(Pagina):
                         altura=28).grid(row=0, column=1, rowspan=2, sticky="e")
 
         ligados = sum(1 for p in d["programas"] if p.ativo)
-        self._secao(f"PROGRAMAS  ·  {ligados} de {len(d['programas'])} ligados", "")
+        self._secao(f"Programas  ·  {ligados} de {len(d['programas'])} ligados", "")
         if not d["programas"]:
             t.rotulo(self.area, "Nenhum.", "corpo", 12, t.FRACO).pack(anchor="w", padx=12, pady=6)
         for p in d["programas"]:
@@ -93,7 +93,7 @@ class Inicializacao(Pagina):
                 row=0, column=1, rowspan=2, sticky="e")
 
         auto = sum(1 for x in d["servicos"] if x.automatico)
-        self._secao(f"SERVIÇOS DE OUTROS PROGRAMAS  ·  {auto} automáticos",
+        self._secao(f"Serviços de outros programas  ·  {auto} automáticos",
                     "Em MANUAL o serviço não abre sozinho com o Windows: o programa dele o chama quando "
                     "precisa. Serviços do Windows e do antivírus não aparecem aqui.")
         if not d["servicos"]:
@@ -102,9 +102,9 @@ class Inicializacao(Pagina):
             aviso = "atualizador: em manual, o programa ainda se atualiza quando você o abre" if x.atualizador else ""
             f = self._linha(x.exibicao, f"{x.nome}  ·  {_curto(x.caminho.strip(chr(34)))}", aviso)
             t.Alternador(f, x.automatico, lambda b, ligar, item=x: self._servico(b, item, ligar),
-                         textos=("AUTOMÁTICO", "MANUAL")).grid(row=0, column=1, rowspan=2, sticky="e")
+                         textos=("automático", "manual")).grid(row=0, column=1, rowspan=2, sticky="e")
 
-        self._secao(f"TAREFAS AGENDADAS DE OUTROS PROGRAMAS  ·  {len(d['tarefas'])}",
+        self._secao(f"Tarefas agendadas de outros programas  ·  {len(d['tarefas'])}",
                     "Atualizadores e ajudantes que o Agendador de Tarefas abre sozinho. As do Windows não "
                     "aparecem aqui.")
         if d["erro_tarefas"]:

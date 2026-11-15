@@ -23,8 +23,8 @@ class Medicoes(Pagina):
         numeros = t.cartao(self.corpo)
         numeros.pack(fill="x")
         self.num = {}
-        for i, (chave, nome) in enumerate((("ultimo", "ÚLTIMA VEZ"), ("media", "MÉDIA"),
-                                            ("melhor", "MAIS RÁPIDO"), ("comparacao", "ANTES E DEPOIS DOS AJUSTES"))):
+        for i, (chave, nome) in enumerate((("ultimo", "Última vez"), ("media", "Média"),
+                                            ("melhor", "Mais rápido"), ("comparacao", "Antes e depois dos ajustes"))):
             numeros.grid_columnconfigure(i, weight=2 if chave == "comparacao" else 1)
             f = ctk.CTkFrame(numeros, fg_color="transparent")
             f.grid(row=0, column=i, sticky="w", padx=18, pady=14)
@@ -124,7 +124,7 @@ class Medicoes(Pagina):
         for i, (b, s) in enumerate(zip(self.lista, seg)):
             x = esq + vao * i + vao / 2
             y = topo + altura - s / maximo * altura
-            cor = t.ACENTO if i == n - 1 else "#8C6A30"
+            cor = t.ACENTO if i == n - 1 else t.BARRA
             c.create_rectangle(x - barra / 2, y, x + barra / 2, topo + altura, fill=cor, width=0)
             if n <= 16 or i % max(1, n // 10) == 0 or i == n - 1:
                 c.create_text(x, topo + altura + 14, text=b.quando.strftime("%d/%m"), fill=t.FRACO, font=(familia, 9))
@@ -138,5 +138,5 @@ class Medicoes(Pagina):
             if not antes or len(antes) == n:
                 continue
             x = esq + vao * (antes[-1] + 1)
-            c.create_line(x, topo - 6, x, topo + altura, fill=t.OK, dash=(4, 3), width=2)
-            c.create_text(x + 6, topo, text=f"ajustes {marco:%d/%m}", anchor="w", fill=t.OK, font=(familia, 9))
+            c.create_line(x, topo - 6, x, topo + altura, fill=t.VINHO_CLARO, dash=(4, 3), width=2)
+            c.create_text(x + 6, topo, text=f"ajustes {marco:%d/%m}", anchor="w", fill=t.PERIGO, font=(familia, 10))

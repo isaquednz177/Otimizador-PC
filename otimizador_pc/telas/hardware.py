@@ -87,7 +87,7 @@ class Hardware(Pagina):
 
         # memória
         m = r.memoria
-        c = self._cartao(0, 0, "MEMÓRIA")
+        c = self._cartao(0, 0, "Memória")
         self._grande(c, formatar_tamanho(m.total) if m.total else "—",
                      " · ".join(x for x in (m.tipo, f"{len(m.pentes)} pente(s)",
                                             f"{m.encaixes} encaixe(s)" if m.encaixes else "",
@@ -98,10 +98,10 @@ class Hardware(Pagina):
         for texto in recs:
             if "pente" in texto:
                 self._nota(c, texto, t.ACENTO)
-        ctk.CTkFrame(c, height=12, fg_color="transparent").pack()
+        ctk.CTkFrame(c, height=12, width=10, fg_color="transparent").pack(pady=(0, 3))  # sem cobrir a borda
 
         # vídeo e processador
-        c = self._cartao(0, 1, "PROCESSADOR E VÍDEO")
+        c = self._cartao(0, 1, "Processador e vídeo")
         self._grande(c, r.cpu.replace("(R)", "").replace("(TM)", "") or "—", r.nucleos, tamanho=20)
         for v in r.videos:
             idade = f"{v['dias'] // 30} meses" if v["dias"] is not None else "?"
@@ -111,10 +111,10 @@ class Hardware(Pagina):
             if velho and v["site"]:
                 self._nota(c, f"Driver {v['fabricante']} com mais de 6 meses: o novo costuma dar mais FPS.",
                            t.ACENTO, ("baixar no site da " + v["fabricante"], lambda u=v["site"]: self._abrir(u)))
-        ctk.CTkFrame(c, height=12, fg_color="transparent").pack()
+        ctk.CTkFrame(c, height=12, width=10, fg_color="transparent").pack(pady=(0, 3))  # sem cobrir a borda
 
         # discos
-        c = self._cartao(1, 0, "DISCOS")
+        c = self._cartao(1, 0, "Discos")
         for d in r.discos:
             texto, cor = SAUDE.get(d["saude"], (d["saude"] or "?", t.SUAVE))
             t.rotulo(c, d["nome"], "corpo_forte", 13).pack(anchor="w", padx=18, pady=(8, 0))
@@ -128,10 +128,10 @@ class Hardware(Pagina):
                 self._par(c, "horas ligado", f"{int(d['horas']):,}".replace(",", "."))
         if r.discos and all(d["desgaste"] is None for d in r.discos):
             self._nota(c, "Desgaste e temperatura só aparecem com Administrador.")
-        ctk.CTkFrame(c, height=12, fg_color="transparent").pack()
+        ctk.CTkFrame(c, height=12, width=10, fg_color="transparent").pack(pady=(0, 3))  # sem cobrir a borda
 
         # bateria e Windows
-        c = self._cartao(1, 1, "BATERIA E WINDOWS")
+        c = self._cartao(1, 1, "Bateria e Windows")
         if r.bateria:
             b = r.bateria
             self._par(c, "bateria", f"{b['saude'] * 100:.0f}% da carga de fábrica",
@@ -147,4 +147,4 @@ class Hardware(Pagina):
                   t.ACENTO if r.reinicio_pendente else None)
         if r.modelo:
             self._par(c, "modelo", r.modelo)
-        ctk.CTkFrame(c, height=12, fg_color="transparent").pack()
+        ctk.CTkFrame(c, height=12, width=10, fg_color="transparent").pack(pady=(0, 3))  # sem cobrir a borda

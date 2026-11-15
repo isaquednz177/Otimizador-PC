@@ -1,46 +1,75 @@
 # -*- coding: utf-8 -*-
 """
-A cara do programa: cores, fontes e as peças da tela.
+A cara do programa: o gótico do site MFG (estilo "Dark Vampira").
 
-Escuro quente com acento âmbar, como um painel de instrumentos. Cantos
-quase retos (nada de botão em pílula), linhas finas em vez de sombra,
-Bahnschrift nos títulos e números, Segoe UI no texto e os ícones do
-próprio Windows (Segoe Fluent Icons; no Windows 10, Segoe MDL2 Assets).
+- Paleta: preto-vinho, pergaminho, ouro velho e vinho (as mesmas cores do css/gotico.css).
+- Fontes do site, embutidas em otimizador_pc/arte (licença OFL) e carregadas só para o
+  app, sem instalar nada no Windows: UnifrakturCook nos títulos das páginas, Grenze
+  Gotisch nos rótulos e Grenze no texto e nos números.
+- Cartões com a moldura de volutas do site nos cantos.
+- Fundo áspero de TV de tubo (linhas de varredura e granulado) atrás dos títulos,
+  no lugar de degradê liso.
+- Cantos quase retos; nenhum botão em pílula.
 """
 
+import ctypes
+import glob
+import os
+import tkinter as tk
 import tkinter.font as tkfont
 
 import customtkinter as ctk
 
-FUNDO = "#0F1113"
-LATERAL = "#131619"
-PAINEL = "#191C20"
-PAINEL2 = "#21252B"
-LINHA = "#2B3037"
-TEXTO = "#ECE7DD"
-SUAVE = "#A29F97"
-FRACO = "#6F6D67"
-ACENTO = "#E3A33B"
-ACENTO_CLARO = "#F0B858"
-ACENTO_FUNDO = "#2E2412"
-NO_ACENTO = "#17110A"
-OK = "#86C98A"
-PERIGO = "#E5776B"
-PERIGO_FUNDO = "#3D1C19"
-RAIO = 3
+ARTE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "arte")
+
+# ---------------------------------------------------------------- cores (Dark Vampira)
+FUNDO = "#0B0709"
+LATERAL = "#0F090C"
+PAINEL = "#1A1115"
+PAINEL2 = "#24171C"
+LINHA = "#3A2A22"
+ORNATO = "#7A5C38"        # borda dos cartões e moldura (ouro velho escurecido)
+TEXTO = "#ECE2CE"         # pergaminho
+SUAVE = "#B7A78F"
+FRACO = "#7D6E5E"
+ACENTO = "#D9B36C"        # ouro
+ACENTO_CLARO = "#E2B866"
+ACENTO_FUNDO = "#2A1C12"
+NO_ACENTO = "#1A0F08"
+VINHO = "#6E1426"
+VINHO_CLARO = "#9A2338"
+OK = "#A9BC82"            # sálvia: "já aplicado", saudável
+PERIGO = "#E0727A"
+PERIGO_FUNDO = "#3A0E16"
+LARANJA = "#E0913F"
+NAV_ATIVO = "#26111B"     # item do menu escolhido: vinho bem escuro
+NAV_HOVER = "#180D12"
+BARRA = "#7A5C38"         # barras dos gráficos
+RAIO = 2
 
 ICONES = {
     "inicio": "", "desempenho": "", "limpeza": "", "espaco": "",
     "ajustes": "", "inicializacao": "", "medicoes": "", "reverter": "",
-    "registro": "", "modo_jogo": "", "hardware": "", "pasta": "", "subir": "", "atualizar": "",
-    "fechar": "", "escudo": "", "aviso": "",
+    "registro": "", "modo_jogo": "", "hardware": "", "pasta": "",
+    "subir": "", "atualizar": "", "fechar": "", "escudo": "", "aviso": "",
 }
 
 _familias = {}
+_imagens = {}   # guarda as imagens (o Tk apaga imagem sem referência)
+
+
+def _carregar_fontes_do_app():
+    """Fontes de otimizador_pc/arte valem só para este programa (FR_PRIVATE)."""
+    for arquivo in glob.glob(os.path.join(ARTE, "*.ttf")):
+        try:
+            ctypes.windll.gdi32.AddFontResourceExW(arquivo, 0x10, 0)
+        except Exception:
+            pass
 
 
 def preparar_fontes():
-    """Escolhe as fontes que existem neste Windows (chamar depois de criar a janela)."""
+    """Chamar depois de criar a janela."""
+    _carregar_fontes_do_app()
     existentes = set(tkfont.families())
 
     def primeira(*opcoes):
@@ -49,17 +78,76 @@ def preparar_fontes():
                 return f
         return opcoes[-1]
     _familias.update(
-        titulo=primeira("Bahnschrift SemiBold", "Bahnschrift", "Segoe UI Semibold", "Segoe UI"),
-        numero=primeira("Bahnschrift", "Segoe UI"),
-        corpo=primeira("Segoe UI Variable Text", "Segoe UI"),
-        corpo_forte=primeira("Segoe UI Variable Text Semibold", "Segoe UI Semibold", "Segoe UI"),
+        gotico=primeira("UnifrakturCook", "Old English Text MT", "Segoe UI Semibold"),
+        titulo=primeira("Grenze Gotisch", "Segoe UI Semibold"),
+        numero=primeira("Grenze SemiBold", "Grenze", "Segoe UI Semibold"),
+        corpo=primeira("Grenze", "Segoe UI"),
+        corpo_forte=primeira("Grenze SemiBold", "Segoe UI Semibold"),
         mono=primeira("Cascadia Mono", "Consolas"),
         icone=primeira("Segoe Fluent Icons", "Segoe MDL2 Assets", "Segoe UI Symbol"),
     )
 
 
+# A Grenze tem letras baixinhas e a Grenze Gotisch é estreita: um pouco maiores para ler bem.
+_AJUSTE = {"corpo": 1, "corpo_forte": 1, "titulo": 2, "numero": 1}
+
+
+def familia(tipo):
+    return _familias.get(tipo, "Segoe UI")
+
+
 def fonte(tipo="corpo", tamanho=13):
-    return ctk.CTkFont(family=_familias.get(tipo, "Segoe UI"), size=tamanho)
+    return ctk.CTkFont(family=familia(tipo), size=tamanho + _AJUSTE.get(tipo, 0))
+
+
+def escala(widget) -> float:
+    try:
+        return ctk.ScalingTracker.get_widget_scaling(widget)
+    except Exception:
+        return 1.0
+
+
+# ---------------------------------------------------------------- imagens
+def _moldura():
+    """Os 4 cantos com volutas, recortados da moldura do site e pintados na cor ORNATO."""
+    if "cantos" in _imagens:
+        return _imagens["cantos"]
+    try:
+        from PIL import Image
+        img = Image.open(os.path.join(ARTE, "moldura.png")).convert("RGBA")
+        r, g, b = (int(ORNATO[i:i + 2], 16) for i in (1, 3, 5))
+        alfa = img.getchannel("A")
+        img = Image.new("RGBA", img.size, (r, g, b, 255))
+        img.putalpha(alfa)
+        n = 40  # o PNG tem 120 px (o dobro de 60): cada canto ocupa 40 x 40
+        w, h = img.size
+        cantos = {
+            "nw": img.crop((0, 0, n, n)), "ne": img.crop((w - n, 0, w, n)),
+            "sw": img.crop((0, h - n, n, h)), "se": img.crop((w - n, h - n, w, h)),
+        }
+        _imagens["cantos"] = {k: ctk.CTkImage(v, size=(20, 20)) for k, v in cantos.items()}
+    except Exception:
+        _imagens["cantos"] = None
+    return _imagens["cantos"]
+
+
+def textura_crt(largura: int, altura: int, base: str = FUNDO):
+    """Fundo de TV de tubo: granulado fino e linhas de varredura (uma imagem PIL)."""
+    from PIL import Image, ImageDraw
+    r, g, b = (int(base[i:i + 2], 16) for i in (1, 3, 5))
+    img = Image.new("RGB", (largura, altura), (r, g, b))
+    ruido = Image.effect_noise((largura, altura), 40).convert("L")
+    quente = Image.merge("RGB", (ruido, ruido.point(lambda v: int(v * 0.8)), ruido.point(lambda v: int(v * 0.7))))
+    img = Image.blend(img, quente, 0.07)
+    desenho = ImageDraw.Draw(img, "RGBA")
+    for y in range(0, altura, 3):
+        desenho.line([(0, y), (largura, y)], fill=(0, 0, 0, 70))
+    # brilho fraco de tela ligada no meio
+    brilho = Image.new("L", (largura, altura), 0)
+    ImageDraw.Draw(brilho).ellipse((-largura * 0.2, -altura * 1.2, largura * 0.9, altura * 1.6), fill=26)
+    claro = Image.new("RGB", (largura, altura), (120, 40, 52))
+    img = Image.composite(claro, img, brilho.point(lambda v: v // 2))
+    return img
 
 
 # ---------------------------------------------------------------- peças
@@ -75,12 +163,13 @@ def icone(pai, nome, tamanho=16, cor=SUAVE, **kw):
 
 def botao(pai, texto, comando, tipo="secundario", largura=None, altura=32, **kw):
     estilos = {
-        "principal": dict(fg_color=ACENTO, hover_color=ACENTO_CLARO, text_color=NO_ACENTO,
-                          border_width=0, font=fonte("corpo_forte", 13)),
-        "secundario": dict(fg_color=PAINEL2, hover_color=LINHA, text_color=TEXTO,
-                           border_width=1, border_color=LINHA, font=fonte("corpo", 13)),
-        "perigo": dict(fg_color=PERIGO_FUNDO, hover_color="#5A2622", text_color=PERIGO,
-                       border_width=1, border_color="#5A2622", font=fonte("corpo", 13)),
+        # vinho com friso dourado, como o botão principal do site
+        "principal": dict(fg_color=VINHO, hover_color=VINHO_CLARO, text_color=TEXTO,
+                          border_width=1, border_color=ACENTO, font=fonte("titulo", 15)),
+        "secundario": dict(fg_color=PAINEL2, hover_color="#30202A", text_color=TEXTO,
+                           border_width=1, border_color=ORNATO, font=fonte("corpo", 13)),
+        "perigo": dict(fg_color=PERIGO_FUNDO, hover_color="#4E1420", text_color=PERIGO,
+                       border_width=1, border_color="#6A2030", font=fonte("corpo", 13)),
         "fantasma": dict(fg_color="transparent", hover_color=PAINEL2, text_color=SUAVE,
                          border_width=0, font=fonte("corpo", 12)),
     }
@@ -91,29 +180,41 @@ def botao(pai, texto, comando, tipo="secundario", largura=None, altura=32, **kw)
     return ctk.CTkButton(pai, text=texto, command=comando, **opcoes)
 
 
-def cartao(pai, **kw):
+def cartao(pai, ornado=True, **kw):
+    """Painel com borda de ouro velho e as volutas do site nos quatro cantos."""
     kw.setdefault("fg_color", PAINEL)
-    return ctk.CTkFrame(pai, corner_radius=RAIO, border_width=1, border_color=LINHA, **kw)
+    c = ctk.CTkFrame(pai, corner_radius=0, border_width=1, border_color=ORNATO, **kw)
+    cantos = _moldura() if ornado else None
+    if cantos:
+        rotulos = []
+        for chave, (relx, rely, ancora) in {"nw": (0, 0, "nw"), "ne": (1, 0, "ne"),
+                                            "sw": (0, 1, "sw"), "se": (1, 1, "se")}.items():
+            r = ctk.CTkLabel(c, text="", image=cantos[chave], fg_color="transparent", width=20, height=20)
+            r.place(relx=relx, rely=rely, anchor=ancora)
+            rotulos.append(r)
+        # depois que o conteúdo do cartão for montado, os cantos sobem para a frente
+        c.after_idle(lambda: [r.lift() for r in rotulos if r.winfo_exists()])
+    return c
 
 
 def barra(pai, valor=0.0, cor=ACENTO, altura=6, largura=200):
     b = ctk.CTkProgressBar(pai, height=altura, width=largura, corner_radius=0, border_width=0,
-                           fg_color=LINHA, progress_color=cor)
+                           fg_color="#2A1A1F", progress_color=cor)
     b.set(max(0.0, min(1.0, valor)))
     return b
 
 
 def caixa(pai, texto, variavel, **kw):
-    return ctk.CTkCheckBox(pai, text=texto, variable=variavel, corner_radius=2, border_width=2,
-                           checkbox_width=18, checkbox_height=18, fg_color=ACENTO, hover_color=ACENTO_CLARO,
-                           border_color=FRACO, checkmark_color=NO_ACENTO, text_color=TEXTO,
+    return ctk.CTkCheckBox(pai, text=texto, variable=variavel, corner_radius=0, border_width=1,
+                           checkbox_width=17, checkbox_height=17, fg_color=VINHO, hover_color=VINHO_CLARO,
+                           border_color=ORNATO, checkmark_color=ACENTO, text_color=TEXTO,
                            font=fonte("corpo", 13), **kw)
 
 
 def rolavel(pai, **kw):
     kw.setdefault("fg_color", "transparent")
     return ctk.CTkScrollableFrame(pai, corner_radius=0, scrollbar_button_color=LINHA,
-                                  scrollbar_button_hover_color=FRACO, **kw)
+                                  scrollbar_button_hover_color=ORNATO, **kw)
 
 
 def separador(pai):
@@ -123,24 +224,72 @@ def separador(pai):
 class Alternador(ctk.CTkButton):
     """Botão quadrado de dois estados (ligado/desligado), no lugar da chave em pílula."""
 
-    def __init__(self, pai, ligado: bool, comando, textos=("LIGADO", "DESLIGADO"), largura=104):
+    def __init__(self, pai, ligado: bool, comando, textos=("ligado", "desligado"), largura=108):
         self._textos = textos
         self._ao_clicar = comando
         super().__init__(pai, text="", width=largura, height=28, corner_radius=RAIO, border_width=1,
-                         font=fonte("titulo", 11), command=self._clique)
+                         font=fonte("titulo", 13), command=self._clique)
         self.definir(ligado)
 
     def definir(self, ligado: bool):
         self.ligado = bool(ligado)
         if self.ligado:
-            self.configure(text=self._textos[0], fg_color=ACENTO_FUNDO, hover_color="#3A2E17",
+            self.configure(text=self._textos[0], fg_color=ACENTO_FUNDO, hover_color="#3A2817",
                            border_color=ACENTO, text_color=ACENTO)
         else:
-            self.configure(text=self._textos[1], fg_color=PAINEL2, hover_color=LINHA,
+            self.configure(text=self._textos[1], fg_color=PAINEL2, hover_color="#30202A",
                            border_color=LINHA, text_color=FRACO)
 
     def _clique(self):
         self._ao_clicar(self, not self.ligado)
+
+
+class Letreiro(tk.Canvas):
+    """
+    Faixa com o fundo de TV de tubo e um texto em fraktur por cima, com um filete
+    dourado embaixo. Usada no título das páginas e no nome do programa.
+    """
+
+    def __init__(self, pai, titulo, subtitulo="", tamanho=30, altura=None, cor=TEXTO):
+        self._esc = escala(pai)
+        self._altura = int((altura or (tamanho * 2.4 + (26 if subtitulo else 0))) * self._esc)
+        super().__init__(pai, height=self._altura, bg=FUNDO, highlightthickness=0, bd=0)
+        self.titulo, self.subtitulo, self.tamanho, self.cor = titulo, subtitulo, tamanho, cor
+        self._foto = None
+        self.bind("<Configure>", lambda e: self._desenhar())
+
+    def _desenhar(self):
+        from PIL import ImageTk
+        w, h = self.winfo_width(), self.winfo_height()
+        if w < 20:
+            return
+        self.delete("all")
+        self._foto = ImageTk.PhotoImage(textura_crt(w, h))
+        self.create_image(0, 0, image=self._foto, anchor="nw")
+        e = self._esc
+        x = int(14 * e)
+        tam = int(self.tamanho * e)
+        y = int(self.tamanho * 1.1 * e)
+        fam = familia("gotico")
+        # sombra vinho e depois o texto: o "brilho" do letreiro
+        self.create_text(x + 2, y + 2, text=self.titulo, anchor="w", fill="#3A0A14", font=(fam, -tam))
+        self.create_text(x, y, text=self.titulo, anchor="w", fill=self.cor, font=(fam, -tam))
+        largura_titulo = tkfont.Font(family=fam, size=-tam).measure(self.titulo)
+        yl = int(y + tam * 0.72)
+        self.create_line(x, yl, x + largura_titulo, yl, fill=ACENTO, width=1)
+        self.create_polygon(x + largura_titulo + 2, yl, x + largura_titulo + 8, yl - 4,
+                            x + largura_titulo + 14, yl, x + largura_titulo + 8, yl + 4, fill=ACENTO, outline="")
+        self.create_line(x + largura_titulo + 18, yl, w - x, yl, fill=ORNATO, width=1)
+        fim = yl + int(10 * e)
+        if self.subtitulo:
+            # o subtítulo não passa por baixo dos botões do topo (que ficam à direita, na linha do título)
+            self.create_text(x, yl + int(8 * e), text=self.subtitulo, anchor="nw", fill=SUAVE,
+                             font=(familia("corpo"), -int(14 * e)), width=w - 2 * x, tags="sub")
+            caixa = self.bbox("sub")
+            if caixa:
+                fim = caixa[3] + int(12 * e)
+        if abs(fim - h) > 2:  # a altura acompanha o texto (que quebra conforme a largura)
+            self.configure(height=fim)
 
 
 def ao_clicar(widget, funcao):
@@ -152,7 +301,7 @@ def ao_clicar(widget, funcao):
 
 def cor_do_uso(fracao: float) -> str:
     if fracao >= 0.9:
-        return PERIGO
+        return VINHO_CLARO
     if fracao >= 0.75:
-        return ACENTO
-    return OK
+        return LARANJA
+    return ACENTO

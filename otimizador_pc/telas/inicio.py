@@ -24,12 +24,12 @@ class Inicio(Pagina):
             grade.grid_columnconfigure(c, weight=1, uniform="cartoes")
         self.c = {}
         especificacao = [
-            ("memoria", "MEMÓRIA", "ver o que está pesando", "desempenho"),
-            ("disco", "DISCO", "ver o que ocupa", "espaco"),
-            ("boot", "TEMPO PARA LIGAR", "ver o histórico", "medicoes"),
-            ("ajustes", "AJUSTES", "ver os ajustes", "ajustes"),
-            ("inicio", "ABREM COM O WINDOWS", "ver a lista", "inicializacao"),
-            ("lixeira", "LIXEIRA", "ir para a limpeza", "limpeza"),
+            ("memoria", "Memória", "ver o que está pesando", "desempenho"),
+            ("disco", "Disco", "ver o que ocupa", "espaco"),
+            ("boot", "Tempo para ligar", "ver o histórico", "medicoes"),
+            ("ajustes", "Ajustes", "ver os ajustes", "ajustes"),
+            ("inicio", "Abrem com o Windows", "ver a lista", "inicializacao"),
+            ("lixeira", "Lixeira", "ir para a limpeza", "limpeza"),
         ]
         for i, (chave, nome, link, destino) in enumerate(especificacao):
             self.c[chave] = self._cartao(grade, i // 3, i % 3, nome, link, destino)
@@ -38,7 +38,7 @@ class Inicio(Pagina):
         rec.pack(fill="both", expand=True, pady=(14, 0))
         cab = ctk.CTkFrame(rec, fg_color="transparent")
         cab.pack(fill="x", padx=18, pady=(14, 6))
-        t.rotulo(cab, "RECOMENDAÇÕES", "titulo", 12, t.SUAVE).pack(side="left")
+        t.rotulo(cab, "Recomendações", "titulo", 12, t.SUAVE).pack(side="left")
         self.lista_rec = t.rolavel(rec)
         self.lista_rec.pack(fill="both", expand=True, padx=8, pady=(0, 8))
         self._timer = None
@@ -57,7 +57,7 @@ class Inicio(Pagina):
         b.pack(fill="x", padx=18, pady=(8, 0))
         b.pack_forget()
         t.botao(c, link + "  ›", lambda: self.j.ir(destino), "fantasma", altura=24, anchor="w").pack(
-            fill="x", padx=10, pady=(0, 8), side="bottom")
+            fill="x", padx=(24, 24), pady=(0, 12), side="bottom")  # longe das volutas dos cantos
         return {"valor": valor, "detalhe": detalhe, "barra": b}
 
     def _definir(self, chave, valor, detalhe="", fracao=None, cor=None):

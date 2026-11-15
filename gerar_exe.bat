@@ -44,7 +44,8 @@ if exist icone.ico set ICONE=--icon=icone.ico
 echo.
 echo [4/4] Compilando (de 1 a 5 minutos)...
 python -m PyInstaller --onefile --windowed --uac-admin --clean --noconfirm ^
-    --name OtimizadorPC --collect-data customtkinter %ICONE% main.py
+    --name OtimizadorPC --collect-data customtkinter ^
+    --add-data "otimizador_pc\arte;otimizador_pc\arte" %ICONE% main.py
 if errorlevel 1 (
     echo [ERRO] A compilacao falhou. Leia a mensagem do PyInstaller acima.
     pause
